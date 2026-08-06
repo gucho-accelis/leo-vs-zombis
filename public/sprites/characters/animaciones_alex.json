@@ -1,0 +1,69 @@
+{
+ "personaje": "alex",
+ "lienzo": {
+  "w": 420,
+  "h": 440,
+  "linea_de_suelo": 418
+ },
+ "escala": "Alex YA viene escalado a 0.90x la altura de Leo dentro del lienzo. Leo mide 393 px, Alex 353. El motor los dibuja igual, sin escala propia para cada uno.",
+ "orientacion": "mira a la derecha",
+ "arma": {
+  "tipo": "rifle blaster",
+  "estilo": "disparo rapido y flojo"
+ },
+ "animaciones": {
+  "correr": {
+   "frames": [
+    "run_3",
+    "run_1",
+    "run_0"
+   ],
+   "fps": 10,
+   "bucle": true,
+   "nota": "secuencia 421. run_2 no se usa: solo difiere un 17.2% de run_0."
+  },
+  "reposo": {
+   "frames": [
+    "idle"
+   ],
+   "bucle": true
+  },
+  "apuntar": {
+   "frames": [
+    "aim"
+   ],
+   "bucle": true
+  },
+  "disparar": {
+   "frames": [
+    "fire"
+   ],
+   "duracion_s": 0.1,
+   "vuelve_a": "apuntar"
+  },
+  "dano": {
+   "frames": [
+    "hurt"
+   ],
+   "duracion_s": 0.3,
+   "vuelve_a": "reposo"
+  }
+ },
+ "sin_usar": [
+  "run_2"
+ ],
+ "pendiente": [
+  "victoria",
+  "super (chut de futbol)"
+ ],
+ "calidad": {
+  "variacion_altura": "5.5%",
+  "desviacion_pies_px": "-8 a +3",
+  "apertura_pies": {
+   "run_0": 172,
+   "run_1": 0,
+   "run_2": 176,
+   "run_3": 99
+  }
+ }
+}
