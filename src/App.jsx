@@ -33,6 +33,9 @@ const SPR = {
   "tf1": "/sprites/characters/leo/common/tf_1.png",
   "tf2": "/sprites/characters/leo/common/tf_2.png",
   "tf3": "/sprites/characters/leo/common/tf_3.png",
+  "ta0": "/sprites/characters/leo/common/ta_0.png",
+  "ta1": "/sprites/characters/leo/common/ta_1.png",
+  "ta2": "/sprites/characters/leo/common/ta_2.png",
   "s_idle": "/sprites/characters/leo/weapons/02_slingshot/idle.png",
   "s_atk": "/sprites/characters/leo/weapons/02_slingshot/attack.png",
   "w_idle": "/sprites/characters/leo/weapons/03_watergun/idle.png",
@@ -64,6 +67,10 @@ const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
 const WIN_FRAMES = 11, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
 /* Carrera unificada (misma para todas las armas): 6 frames crun0..crun5. */
 const CRUN_FRAMES = 6, RUN_SPD = 1;
+/* MODO SÚPER: secuencia ping-pong idle(1-4)+attack(1-3) y vuelta. Todos los frames
+   comparten el lienzo 462x611 con los pies anclados en (142,608). */
+const SUPER_SEQ = ["tf0", "tf1", "tf2", "tf3", "ta0", "ta1", "ta2", "ta1", "ta0", "tf3", "tf2", "tf1", "tf0"];
+const SUPER_FRAME_T = 0.09, TF_AX = 142, TF_AY = 608, TF_CHARH = 459;
 const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
@@ -137,7 +144,7 @@ const freshP = () => ({
 const freshGame = () => ({
   p: freshP(), coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
-  atkT: 0, supT: 0, superT: 0, chargeT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
+  atkT: 0, supT: 0, superT: 0, chargeT: 0, superAnimT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
   winT: 0, pendingChoices: null,
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0,
 });
@@ -403,6 +410,7 @@ export default function LeoRun() {
     cosmetic(dt);
     if (s.supT > 0) s.supT -= dt;
     if (s.hurtT > 0) s.hurtT -= dt;
+    s.superAnimT = (s.chargeT > 0 || s.superT > 0) ? s.superAnimT + dt : 0;
     if (s.poseT > 0) { s.poseT -= dt; if (s.poseT <= 0 && (s.state === "atk" || s.state === "hurt" || s.state === "win")) s.state = phaseRef.current === "run" ? "run" : "idle"; }
 
     /* charging super */
@@ -666,27 +674,28 @@ export default function LeoRun() {
     };
 
     if (superVis) {
-      // Transformación: durante la carga avanza 0→3; en súper activo se mantiene el frame 3.
-      const prog = s.chargeT > 0 ? 1 - s.chargeT / .7 : 1;
-      const tfi = Math.min(3, Math.max(0, Math.floor(prog * 4)));
-      const im = IMG.current["tf" + tfi]; if (!im) return;
-      const h = LEO_H * 1.15, w = im.width * h / im.height;
+      // Secuencia ping-pong: idle 1-4 (transformación) + attack 1-3 y vuelta, en bucle.
+      const key = SUPER_SEQ[Math.floor(s.superAnimT / SUPER_FRAME_T) % SUPER_SEQ.length];
+      const im = IMG.current[key]; if (!im) return;
+      const sc = LEO_H * 1.15 / TF_CHARH;   // cuerpo ~1.15x Leo normal
       ctx.save();
-      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, w * .3, 6, 0, 0, Math.PI * 2);
+      // sombra en los pies
+      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, LEO_H * .34, 6, 0, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
-      // resplandor azul suave detrás
-      const pulse = 1 + Math.sin(T * 20) * .06;
-      const gr = ctx.createRadialGradient(LEO_X, GY - h * .5, 8, LEO_X, GY - h * .5, h * .75 * pulse);
+      // resplandor azul detrás (centrado en el torso)
+      const gy = GY - LEO_H * .55, pulse = 1 + Math.sin(T * 20) * .06;
+      const gr = ctx.createRadialGradient(LEO_X, gy, 8, LEO_X, gy, LEO_H * .95 * pulse);
       gr.addColorStop(0, "rgba(150,220,255,.4)");
       gr.addColorStop(.5, "rgba(90,160,255,.22)");
       gr.addColorStop(1, "rgba(80,150,255,0)");
       ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.ellipse(LEO_X, GY - h * .5, h * .55 * pulse, h * .85 * pulse, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.drawImage(im, LEO_X - w / 2, GY - h, w, h);
+      ctx.beginPath(); ctx.ellipse(LEO_X, gy, LEO_H * .6 * pulse, LEO_H * .95 * pulse, 0, 0, Math.PI * 2); ctx.fill();
+      // sprite anclado por los pies (TF_AX,TF_AY) a (LEO_X,GY)
+      ctx.drawImage(im, LEO_X - TF_AX * sc, GY - TF_AY * sc, im.width * sc, im.height * sc);
       // rayos dinámicos ocasionales
       if (Math.random() < .4) {
         ctx.strokeStyle = "rgba(190,240,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
-        const sx = LEO_X + (Math.random() - .5) * 84, sy = GY - h * (.2 + Math.random() * .8);
+        const sx = LEO_X + (Math.random() - .5) * 90, sy = GY - LEO_H * (.2 + Math.random() * 1.1);
         ctx.beginPath(); ctx.moveTo(sx, sy);
         for (let i = 0; i < 3; i++) ctx.lineTo(sx + (Math.random() - .5) * 34, sy + (i + 1) * 12 * (Math.random() < .5 ? 1 : -1));
         ctx.stroke();
@@ -763,7 +772,7 @@ export default function LeoRun() {
   const superShot = () => {
     const s = g.current;
     if (phaseRef.current !== "fight" || s.supT > 0 || s.chargeT > 0 || !s.enemies.length) return;
-    s.supT = s.p.superCd; s.chargeT = .7; SFX.charge();
+    s.supT = s.p.superCd; s.chargeT = .7; s.superAnimT = 0; SFX.charge();
   };
   const takeUp = u => {
     const s = g.current;
