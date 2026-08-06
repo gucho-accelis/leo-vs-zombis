@@ -1,0 +1,231 @@
+{
+  "convention": {
+    "facing": "TODOS los sprites miran a la DERECHA. El motor voltea los enemigos por codigo.",
+    "anchor": "pies centrados en el borde inferior del PNG",
+    "format": "PNG con alfa. Fondos en JPG.",
+    "naming": "minusculas, guion_bajo, sin acentos ni espacios"
+  },
+  "character_states": {
+    "run": "avanza entre combates (4 frames + run del arma)",
+    "idle": "en combate, entre disparos",
+    "attack": "al disparar",
+    "hurt": "recibe golpe",
+    "ko": "muere",
+    "victory": "zona despejada"
+  },
+  "enemy_states": [
+    "idle",
+    "walk_0",
+    "walk_1",
+    "attack",
+    "hurt",
+    "dead"
+  ],
+  "adding_a_character": "duplica characters/leo/ como characters/<nombre>/ y rellena los mismos archivos",
+  "files": {
+    "backgrounds/bg_01.jpg": {
+      "w": 1582,
+      "h": 209
+    },
+    "backgrounds/bg_02.jpg": {
+      "w": 1582,
+      "h": 199
+    },
+    "backgrounds/bg_03.jpg": {
+      "w": 1582,
+      "h": 169
+    },
+    "backgrounds/bg_04.jpg": {
+      "w": 1582,
+      "h": 173
+    },
+    "backgrounds/bg_05.jpg": {
+      "w": 1582,
+      "h": 178
+    },
+    "characters/leo/_unused/back.png": {
+      "w": 170,
+      "h": 370
+    },
+    "characters/leo/_unused/back_three_quarter.png": {
+      "w": 176,
+      "h": 368
+    },
+    "characters/leo/_unused/fight_stance.png": {
+      "w": 224,
+      "h": 307
+    },
+    "characters/leo/_unused/front.png": {
+      "w": 174,
+      "h": 371
+    },
+    "characters/leo/_unused/kick_football.png": {
+      "w": 263,
+      "h": 312
+    },
+    "characters/leo/_unused/three_quarter.png": {
+      "w": 181,
+      "h": 367
+    },
+    "characters/leo/common/hurt.png": {
+      "w": 207,
+      "h": 307
+    },
+    "characters/leo/common/idle_unarmed.png": {
+      "w": 177,
+      "h": 371
+    },
+    "characters/leo/common/ko.png": {
+      "w": 208,
+      "h": 282
+    },
+    "characters/leo/common/run_0.png": {
+      "w": 201,
+      "h": 303
+    },
+    "characters/leo/common/run_1.png": {
+      "w": 231,
+      "h": 308
+    },
+    "characters/leo/common/run_2.png": {
+      "w": 255,
+      "h": 312
+    },
+    "characters/leo/common/run_3.png": {
+      "w": 229,
+      "h": 306
+    },
+    "characters/leo/common/victory.png": {
+      "w": 213,
+      "h": 332
+    },
+    "characters/leo/weapons/01_basketball/attack.png": {
+      "w": 236,
+      "h": 306
+    },
+    "characters/leo/weapons/01_basketball/idle.png": {
+      "w": 167,
+      "h": 231
+    },
+    "characters/leo/weapons/01_basketball/run.png": {
+      "w": 239,
+      "h": 295
+    },
+    "characters/leo/weapons/01_basketball/windup.png": {
+      "w": 236,
+      "h": 300
+    },
+    "characters/leo/weapons/02_slingshot/_alt_idle.png": {
+      "w": 219,
+      "h": 306
+    },
+    "characters/leo/weapons/02_slingshot/aim.png": {
+      "w": 272,
+      "h": 301
+    },
+    "characters/leo/weapons/02_slingshot/attack.png": {
+      "w": 283,
+      "h": 291
+    },
+    "characters/leo/weapons/02_slingshot/idle.png": {
+      "w": 181,
+      "h": 231
+    },
+    "characters/leo/weapons/03_watergun/_alt_idle.png": {
+      "w": 200,
+      "h": 268
+    },
+    "characters/leo/weapons/03_watergun/attack.png": {
+      "w": 219,
+      "h": 299
+    },
+    "characters/leo/weapons/03_watergun/attack_short.png": {
+      "w": 257,
+      "h": 292
+    },
+    "characters/leo/weapons/03_watergun/idle.png": {
+      "w": 185,
+      "h": 226
+    },
+    "characters/leo/weapons/03_watergun/run.png": {
+      "w": 276,
+      "h": 283
+    },
+    "enemies/01_kid/attack.png": {
+      "w": 274,
+      "h": 256
+    },
+    "enemies/01_kid/getup.png": {
+      "w": 247,
+      "h": 197
+    },
+    "enemies/01_kid/idle.png": {
+      "w": 168,
+      "h": 261
+    },
+    "enemies/01_kid/walk_0.png": {
+      "w": 216,
+      "h": 244
+    },
+    "enemies/01_kid/walk_1.png": {
+      "w": 217,
+      "h": 232
+    },
+    "enemies/02_classic/attack.png": {
+      "w": 269,
+      "h": 229
+    },
+    "enemies/02_classic/dead.png": {
+      "w": 276,
+      "h": 118
+    },
+    "enemies/02_classic/hurt.png": {
+      "w": 184,
+      "h": 233
+    },
+    "enemies/02_classic/idle.png": {
+      "w": 182,
+      "h": 244
+    },
+    "enemies/02_classic/walk_0.png": {
+      "w": 188,
+      "h": 239
+    },
+    "enemies/02_classic/walk_1.png": {
+      "w": 228,
+      "h": 234
+    },
+    "enemies/03_brute/_roar_and_pound_MERGED.png": {
+      "w": 576,
+      "h": 294
+    },
+    "enemies/03_brute/attack.png": {
+      "w": 268,
+      "h": 266
+    },
+    "enemies/03_brute/idle.png": {
+      "w": 271,
+      "h": 290
+    },
+    "enemies/03_brute/walk_0.png": {
+      "w": 297,
+      "h": 286
+    },
+    "projectiles/basketball.png": {
+      "w": 74,
+      "h": 74
+    },
+    "projectiles/basketball_trail.png": {
+      "w": 159,
+      "h": 75
+    },
+    "projectiles/slingshot_trail.png": {
+      "w": 117,
+      "h": 36
+    },
+    "projectiles/water_spray.png": {
+      "w": 162,
+      "h": 58
+    }
+  }
+}
