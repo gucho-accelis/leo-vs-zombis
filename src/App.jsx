@@ -20,7 +20,6 @@ const SPR = {
   "win8": "/sprites/characters/leo/common/win_8.png",
   "win9": "/sprites/characters/leo/common/win_9.png",
   "win10": "/sprites/characters/leo/common/win_10.png",
-  "win11": "/sprites/characters/leo/common/win_11.png",
   "b_idle": "/sprites/characters/leo/weapons/01_basketball/idle.png",
   "b_run": "/sprites/characters/leo/weapons/01_basketball/run.png",
   "b_atk": "/sprites/characters/leo/weapons/01_basketball/attack.png",
@@ -52,7 +51,7 @@ const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
 
 /* Secuencia de victoria: 12 frames (win0..win11). Se reproduce una vez y
    la pantalla de mejoras / el cartel esperan a que termine. */
-const WIN_FRAMES = 12, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
+const WIN_FRAMES = 11, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
 const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
