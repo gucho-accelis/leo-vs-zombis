@@ -180,6 +180,11 @@ export default function LeoRun() {
     const s = g.current;
     if (s.shakeT > 0) { s.shakeT -= dt; if (s.shakeT <= 0) s.shake = 0; }
     if (s.flash > 0) s.flash -= dt * 3;
+    for (let i = s.balls.length - 1; i >= 0; i--) {
+      const b = s.balls[i];
+      b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 12;
+      if (b.x > W + 60 || b.x < -60 || b.y < -40 || b.y > H + 40) s.balls.splice(i, 1);
+    }
     for (let i = s.parts.length - 1; i >= 0; i--) {
       const p = s.parts[i]; p.t -= dt; p.vy += (p.g === undefined ? 340 : p.g) * dt;
       p.x += p.vx * dt; p.y += p.vy * dt; if (p.t <= 0) s.parts.splice(i, 1);
