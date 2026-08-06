@@ -70,7 +70,13 @@ const CRUN_FRAMES = 6, RUN_SPD = 1;
 /* MODO SÚPER: secuencia ping-pong idle(1-4)+attack(1-3) y vuelta. Todos los frames
    comparten el lienzo 462x611 con los pies anclados en (142,608). */
 const SUPER_SEQ = ["tf0", "tf1", "tf2", "tf3", "ta0", "ta1", "ta2", "ta1", "ta0", "tf3", "tf2", "tf1", "tf0"];
-const SUPER_FRAME_T = 0.09, TF_AX = 142, TF_AY = 608, TF_CHARH = 459;
+const SUPER_FRAME_T = 0.09;
+/* Escala unificada: la camiseta (normalizada a 360px en el sprite) se dibuja a 93px,
+   igual que idle/correr, para que Leo mida lo mismo en todas las animaciones.
+   Victoria y súper llevan lienzo propio con los pies anclados en (FX,FY). */
+const SC_BODY = 93 / 360;
+const WIN_W = 242, WIN_H = 397, WIN_FX = 98, WIN_FY = 394;
+const SUP_W = 441, SUP_H = 548, SUP_FX = 160, SUP_FY = 544;
 const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
@@ -677,7 +683,7 @@ export default function LeoRun() {
       // Secuencia ping-pong: idle 1-4 (transformación) + attack 1-3 y vuelta, en bucle.
       const key = SUPER_SEQ[Math.floor(s.superAnimT / SUPER_FRAME_T) % SUPER_SEQ.length];
       const im = IMG.current[key]; if (!im) return;
-      const sc = LEO_H * 1.15 / TF_CHARH;   // cuerpo ~1.15x Leo normal
+      const sc = SC_BODY;
       ctx.save();
       // sombra en los pies
       ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, LEO_H * .34, 6, 0, 0, Math.PI * 2);
@@ -690,8 +696,8 @@ export default function LeoRun() {
       gr.addColorStop(1, "rgba(80,150,255,0)");
       ctx.fillStyle = gr;
       ctx.beginPath(); ctx.ellipse(LEO_X, gy, LEO_H * .6 * pulse, LEO_H * .95 * pulse, 0, 0, Math.PI * 2); ctx.fill();
-      // sprite anclado por los pies (TF_AX,TF_AY) a (LEO_X,GY)
-      ctx.drawImage(im, LEO_X - TF_AX * sc, GY - TF_AY * sc, im.width * sc, im.height * sc);
+      // sprite anclado por los pies (SUP_FX,SUP_FY) a (LEO_X,GY)
+      ctx.drawImage(im, LEO_X - SUP_FX * sc, GY - SUP_FY * sc, SUP_W * sc, SUP_H * sc);
       // rayos dinámicos ocasionales
       if (Math.random() < .4) {
         ctx.strokeStyle = "rgba(190,240,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
@@ -705,12 +711,23 @@ export default function LeoRun() {
       return;
     }
 
+    if (s.state === "win") {
+      // Victoria: mismo tamaño de cuerpo (SC_BODY), anclada por los pies.
+      const im = IMG.current["win" + Math.min(WIN_FRAMES - 1, Math.floor(s.winT / WIN_FRAME_T))]; if (!im) return;
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, WIN_W * SC_BODY * .34, 6, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
+      ctx.drawImage(im, LEO_X - WIN_FX * SC_BODY, GY - WIN_FY * SC_BODY, WIN_W * SC_BODY, WIN_H * SC_BODY);
+      ctx.restore();
+      healthBar(LEO_H);
+      return;
+    }
+
     let key = wpn.idle;
     if (s.state === "run") key = "crun" + (Math.floor(s.anim * RUN_SPD) % CRUN_FRAMES);
     else if (s.state === "atk") key = wpn.atk;
     else if (s.state === "hurt") key = "hurt";
     else if (s.state === "ko") key = "ko";
-    else if (s.state === "win") key = "win" + Math.min(WIN_FRAMES - 1, Math.floor(s.winT / WIN_FRAME_T));
     const im = IMG.current[key]; if (!im) return;
     const h = LEO_H, w = im.width * h / im.height;
     ctx.save();
