@@ -71,6 +71,8 @@ const CRUN_FRAMES = 6, RUN_SPD = 1;
    comparten el lienzo 462x611 con los pies anclados en (142,608). */
 const SUPER_SEQ = ["tf0", "tf1", "tf2", "tf3", "ta0", "ta1", "ta2", "ta1", "ta0", "tf3", "tf2", "tf1", "tf0"];
 const SUPER_FRAME_T = 0.09;
+const SUPER_DUR = SUPER_SEQ.length * SUPER_FRAME_T;   // dura una sola pasada
+const SUPER_APEX_T = 6 * SUPER_FRAME_T;               // momento del golpe (frame a3): un único disparo
 /* Escala unificada: la camiseta (normalizada a 360px en el sprite) se dibuja a 93px,
    igual que idle/correr, para que Leo mida lo mismo en todas las animaciones.
    Victoria y súper llevan lienzo propio con los pies anclados en (FX,FY). */
@@ -150,7 +152,7 @@ const freshP = () => ({
 const freshGame = () => ({
   p: freshP(), coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
-  atkT: 0, supT: 0, superT: 0, chargeT: 0, superAnimT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
+  atkT: 0, supT: 0, superT: 0, chargeT: 0, superAnimT: 0, superFired: false, state: "run", anim: 0, poseT: 0, hurtT: 0,
   winT: 0, pendingChoices: null,
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0,
 });
@@ -416,30 +418,30 @@ export default function LeoRun() {
     cosmetic(dt);
     if (s.supT > 0) s.supT -= dt;
     if (s.hurtT > 0) s.hurtT -= dt;
-    s.superAnimT = (s.chargeT > 0 || s.superT > 0) ? s.superAnimT + dt : 0;
+    s.superAnimT = s.superT > 0 ? s.superAnimT + dt : 0;
     if (s.poseT > 0) { s.poseT -= dt; if (s.poseT <= 0 && (s.state === "atk" || s.state === "hurt" || s.state === "win")) s.state = phaseRef.current === "run" ? "run" : "idle"; }
 
-    /* charging super */
-    if (s.chargeT > 0) {
-      s.chargeT -= dt;
-      s.state = "idle";
-      for (let i = 0; i < 3; i++) {
-        const a = Math.random() * Math.PI * 2;
-        s.parts.push({ x: LEO_X + Math.cos(a) * 46, y: GY - 10 - Math.random() * 20, vx: -Math.cos(a) * 40, vy: -160 - Math.random() * 140, t: .5, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#7EC8FF" : "#FFFFFF", g: -60 });
+    /* super: una sola pasada (transformación → un disparo → vuelta) */
+    if (s.superT > 0) {
+      s.superT -= dt;
+      // partículas de aura durante todo el súper
+      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 14, vx: (Math.random() - .5) * 30, vy: -180 - Math.random() * 120, t: .45, r: 2 + Math.random() * 3, c: "#8FD6FF", g: -40 });
+      // carga hacia arriba mientras se transforma (antes del golpe)
+      if (s.superAnimT < SUPER_APEX_T) {
+        for (let i = 0; i < 3; i++) {
+          const a = Math.random() * Math.PI * 2;
+          s.parts.push({ x: LEO_X + Math.cos(a) * 46, y: GY - 10 - Math.random() * 20, vx: -Math.cos(a) * 40, vy: -160 - Math.random() * 140, t: .5, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#7EC8FF" : "#FFFFFF", g: -60 });
+        }
+        shake(3);
       }
-      shake(3);
-      if (s.chargeT <= 0) {
-        s.superT = 2.2; s.flash = 1; shake(14); SFX.blast();
+      // un ÚNICO disparo potente en el golpe
+      if (!s.superFired && s.superAnimT >= SUPER_APEX_T) {
+        s.superFired = true; s.flash = 1; shake(14); SFX.blast(); fire(s);
         for (let i = 0; i < 44; i++) {
           const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 320;
           s.parts.push({ x: LEO_X, y: GY - 52, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: .55, r: 2 + Math.random() * 5, c: Math.random() < .5 ? "#6FB8FF" : "#DDF2FF", g: 40 });
         }
       }
-      syncHud(s); return;
-    }
-    if (s.superT > 0) {
-      s.superT -= dt;
-      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 14, vx: (Math.random() - .5) * 30, vy: -180 - Math.random() * 120, t: .45, r: 2 + Math.random() * 3, c: "#8FD6FF", g: -40 });
     }
 
     if (phaseRef.current === "run") {
@@ -506,8 +508,8 @@ export default function LeoRun() {
     const wpn = WEAPONS[p.weapon];
     s.atkT -= dt;
     const visible = s.enemies.some(e => e.x < W - 40);
-    if (s.atkT <= 0 && visible) {
-      s.atkT = wpn.rate * p.rate * (s.superT > 0 ? .45 : 1);
+    if (s.superT <= 0 && s.atkT <= 0 && visible) {   // durante el súper no dispara normal (solo el golpe único)
+      s.atkT = wpn.rate * p.rate;
       fire(s);
     }
 
@@ -546,7 +548,7 @@ export default function LeoRun() {
       // fase "fight") y la pantalla de mejoras / el cartel esperan a que termine.
       s.enc++;
       s.nextEnc = s.dist + 360 + Math.random() * 150;
-      s.state = "win"; s.winT = 0; s.poseT = 0;
+      s.state = "win"; s.winT = 0; s.poseT = 0; s.superT = 0;   // termina el súper al despejar
       if (s.enc % 3 === 0 || s.enc % 5 === 0) {
         SFX.up();
         const pool = [...UPGRADES];
@@ -666,7 +668,7 @@ export default function LeoRun() {
 
   const drawLeo = (ctx, s, T) => {
     const wpn = WEAPONS[s.p.weapon];
-    const superOn = s.superT > 0 || s.chargeT > 0;
+    const superOn = s.superT > 0;
     // La transformación se ve en combate (idle/atacar/golpe); no pisa correr ni la victoria.
     const superVis = superOn && (s.state === "idle" || s.state === "atk" || s.state === "hurt");
     const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
@@ -681,7 +683,7 @@ export default function LeoRun() {
 
     if (superVis) {
       // Secuencia ping-pong: idle 1-4 (transformación) + attack 1-3 y vuelta, en bucle.
-      const key = SUPER_SEQ[Math.floor(s.superAnimT / SUPER_FRAME_T) % SUPER_SEQ.length];
+      const key = SUPER_SEQ[Math.min(SUPER_SEQ.length - 1, Math.floor(s.superAnimT / SUPER_FRAME_T))];
       const im = IMG.current[key]; if (!im) return;
       const sc = SC_BODY;
       ctx.save();
@@ -788,8 +790,8 @@ export default function LeoRun() {
   /* ---- input ---- */
   const superShot = () => {
     const s = g.current;
-    if (phaseRef.current !== "fight" || s.supT > 0 || s.chargeT > 0 || !s.enemies.length) return;
-    s.supT = s.p.superCd; s.chargeT = .7; s.superAnimT = 0; SFX.charge();
+    if (phaseRef.current !== "fight" || s.supT > 0 || s.superT > 0 || !s.enemies.length) return;
+    s.supT = s.p.superCd; s.superT = SUPER_DUR; s.superAnimT = 0; s.superFired = false; SFX.charge();
   };
   const takeUp = u => {
     const s = g.current;
