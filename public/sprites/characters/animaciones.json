@@ -1,0 +1,89 @@
+{
+ "lienzo": {
+  "w": 420,
+  "h": 440,
+  "linea_de_suelo": 418
+ },
+ "regla": "Todos los frames comparten lienzo y linea de suelo, ya alineados por los pies y por el eje de la cabeza. El motor los dibuja todos igual: coloca el frame con su borde inferior 22 px por debajo del suelo. No recortar ni recentrar.",
+ "orientacion": "mira a la derecha",
+ "versiones": {
+  "normal": "characters/leo",
+  "super": "characters/leo_super"
+ },
+ "animaciones": {
+  "correr": {
+   "frames": [
+    "run_3",
+    "run_1",
+    "run_0"
+   ],
+   "fps": 10,
+   "bucle": true,
+   "nota": "secuencia 421, elegida comparando en movimiento. run_2 se descarta: es casi identico a run_0 (15% de diferencia) y hacia patinar el ciclo."
+  },
+  "reposo": {
+   "frames": [
+    "idle"
+   ],
+   "bucle": true
+  },
+  "apuntar": {
+   "frames": [
+    "aim"
+   ],
+   "bucle": true
+  },
+  "disparar": {
+   "frames": [
+    "fire"
+   ],
+   "duracion_s": 0.13,
+   "vuelve_a": "apuntar"
+  },
+  "dano": {
+   "frames": [
+    "hurt"
+   ],
+   "duracion_s": 0.3,
+   "vuelve_a": "reposo"
+  },
+  "victoria": {
+   "frames": [
+    "victory_0",
+    "victory_1",
+    "victory_2",
+    "victory_3",
+    "victory_4",
+    "victory_5",
+    "victory_6"
+   ],
+   "fps": 9,
+   "bucle": false,
+   "mantener_ultimo_s": 0.9,
+   "vuelve_a": "reposo",
+   "solo_version": "normal",
+   "nota": "7 frames: se pone las gafas y remata con el pulgar. El frame 8 original se descarta y no se incluye: en el, el brazo nace del hombro contrario y cruza el pecho. En la version super no existe esta secuencia; usar el frame unico victory.png."
+  },
+  "victoria_super": {
+   "frames": [
+    "victory"
+   ],
+   "duracion_s": 0.8,
+   "vuelve_a": "reposo"
+  }
+ },
+ "sin_usar": [
+  "run_2",
+  "victory_7 (no incluido: cambio de brazo)"
+ ],
+ "calidad": {
+  "hoja_9_poses": {
+   "variacion_altura": "10.3%",
+   "desviacion_pies_px": "-10 a +5"
+  },
+  "hoja_victoria": {
+   "variacion_altura": "2.2%",
+   "desviacion_pies_px": "+/-1"
+  }
+ }
+}
