@@ -29,6 +29,10 @@ const SPR = {
   "crun3": "/sprites/characters/leo/common/crun_3.png",
   "crun4": "/sprites/characters/leo/common/crun_4.png",
   "crun5": "/sprites/characters/leo/common/crun_5.png",
+  "tf0": "/sprites/characters/leo/common/tf_0.png",
+  "tf1": "/sprites/characters/leo/common/tf_1.png",
+  "tf2": "/sprites/characters/leo/common/tf_2.png",
+  "tf3": "/sprites/characters/leo/common/tf_3.png",
   "s_idle": "/sprites/characters/leo/weapons/02_slingshot/idle.png",
   "s_atk": "/sprites/characters/leo/weapons/02_slingshot/attack.png",
   "w_idle": "/sprites/characters/leo/weapons/03_watergun/idle.png",
@@ -407,21 +411,21 @@ export default function LeoRun() {
       s.state = "idle";
       for (let i = 0; i < 3; i++) {
         const a = Math.random() * Math.PI * 2;
-        s.parts.push({ x: LEO_X + Math.cos(a) * 46, y: GY - 10 - Math.random() * 20, vx: -Math.cos(a) * 40, vy: -160 - Math.random() * 140, t: .5, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#FFE066" : "#FFF7C2", g: -60 });
+        s.parts.push({ x: LEO_X + Math.cos(a) * 46, y: GY - 10 - Math.random() * 20, vx: -Math.cos(a) * 40, vy: -160 - Math.random() * 140, t: .5, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#7EC8FF" : "#FFFFFF", g: -60 });
       }
       shake(3);
       if (s.chargeT <= 0) {
         s.superT = 2.2; s.flash = 1; shake(14); SFX.blast();
         for (let i = 0; i < 44; i++) {
           const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 320;
-          s.parts.push({ x: LEO_X, y: GY - 52, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: .55, r: 2 + Math.random() * 5, c: Math.random() < .5 ? "#FFD54A" : "#FFF3C4", g: 40 });
+          s.parts.push({ x: LEO_X, y: GY - 52, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: .55, r: 2 + Math.random() * 5, c: Math.random() < .5 ? "#6FB8FF" : "#DDF2FF", g: 40 });
         }
       }
       syncHud(s); return;
     }
     if (s.superT > 0) {
       s.superT -= dt;
-      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 14, vx: (Math.random() - .5) * 30, vy: -180 - Math.random() * 120, t: .45, r: 2 + Math.random() * 3, c: "#FFE066", g: -40 });
+      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 14, vx: (Math.random() - .5) * 30, vy: -180 - Math.random() * 120, t: .45, r: 2 + Math.random() * 3, c: "#8FD6FF", g: -40 });
     }
 
     if (phaseRef.current === "run") {
@@ -612,7 +616,7 @@ export default function LeoRun() {
     }
     if (s.flash > 0) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = "rgba(255,247,200," + Math.min(.85, s.flash) + ")";
+      ctx.fillStyle = "rgba(210,236,255," + Math.min(.85, s.flash) + ")";
       ctx.fillRect(0, 0, W, H);
     }
   };
@@ -648,69 +652,65 @@ export default function LeoRun() {
 
   const drawLeo = (ctx, s, T) => {
     const wpn = WEAPONS[s.p.weapon];
-    let key = wpn.idle;
-    if (s.state === "run") {
-      key = "crun" + (Math.floor(s.anim * RUN_SPD) % CRUN_FRAMES);
+    const superOn = s.superT > 0 || s.chargeT > 0;
+    // La transformación se ve en combate (idle/atacar/golpe); no pisa correr ni la victoria.
+    const superVis = superOn && (s.state === "idle" || s.state === "atk" || s.state === "hurt");
+    const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
+
+    const healthBar = h => {
+      const pct = Math.max(0, s.p.hp / s.p.maxHp);
+      const bw = 66, bx = LEO_X - bw / 2, by = GY - h - 16;
+      roundRect(ctx, bx - 2, by - 2, bw + 4, 9, 4); ctx.fillStyle = C.ink; ctx.fill();
+      ctx.fillStyle = pct > .5 ? "#6BE04A" : pct > .25 ? "#FFD54A" : "#FF5C5C";
+      ctx.fillRect(bx, by, bw * pct, 5);
+    };
+
+    if (superVis) {
+      // Transformación: durante la carga avanza 0→3; en súper activo se mantiene el frame 3.
+      const prog = s.chargeT > 0 ? 1 - s.chargeT / .7 : 1;
+      const tfi = Math.min(3, Math.max(0, Math.floor(prog * 4)));
+      const im = IMG.current["tf" + tfi]; if (!im) return;
+      const h = LEO_H * 1.15, w = im.width * h / im.height;
+      ctx.save();
+      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, w * .3, 6, 0, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
+      // resplandor azul suave detrás
+      const pulse = 1 + Math.sin(T * 20) * .06;
+      const gr = ctx.createRadialGradient(LEO_X, GY - h * .5, 8, LEO_X, GY - h * .5, h * .75 * pulse);
+      gr.addColorStop(0, "rgba(150,220,255,.4)");
+      gr.addColorStop(.5, "rgba(90,160,255,.22)");
+      gr.addColorStop(1, "rgba(80,150,255,0)");
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.ellipse(LEO_X, GY - h * .5, h * .55 * pulse, h * .85 * pulse, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.drawImage(im, LEO_X - w / 2, GY - h, w, h);
+      // rayos dinámicos ocasionales
+      if (Math.random() < .4) {
+        ctx.strokeStyle = "rgba(190,240,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
+        const sx = LEO_X + (Math.random() - .5) * 84, sy = GY - h * (.2 + Math.random() * .8);
+        ctx.beginPath(); ctx.moveTo(sx, sy);
+        for (let i = 0; i < 3; i++) ctx.lineTo(sx + (Math.random() - .5) * 34, sy + (i + 1) * 12 * (Math.random() < .5 ? 1 : -1));
+        ctx.stroke();
+      }
+      ctx.restore();
+      healthBar(LEO_H);
+      return;
     }
+
+    let key = wpn.idle;
+    if (s.state === "run") key = "crun" + (Math.floor(s.anim * RUN_SPD) % CRUN_FRAMES);
     else if (s.state === "atk") key = wpn.atk;
     else if (s.state === "hurt") key = "hurt";
     else if (s.state === "ko") key = "ko";
     else if (s.state === "win") key = "win" + Math.min(WIN_FRAMES - 1, Math.floor(s.winT / WIN_FRAME_T));
     const im = IMG.current[key]; if (!im) return;
     const h = LEO_H, w = im.width * h / im.height;
-    const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
-    const superOn = s.superT > 0 || s.chargeT > 0;
-    const charge = s.chargeT > 0 ? 1 - s.chargeT / .7 : 1;
-
     ctx.save();
     ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, w * .38, 6, 0, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
-
-    if (superOn) {
-      // aura
-      const pulse = 1 + Math.sin(T * 22) * .06;
-      const gr = ctx.createRadialGradient(LEO_X, GY - h * .5, 8, LEO_X, GY - h * .5, h * .95 * pulse * (0.6 + charge * 0.4));
-      gr.addColorStop(0, "rgba(255,240,150,.85)");
-      gr.addColorStop(.45, "rgba(255,200,60,.45)");
-      gr.addColorStop(1, "rgba(255,170,30,0)");
-      ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.ellipse(LEO_X, GY - h * .5, h * .62 * pulse, h * .92 * pulse, 0, 0, Math.PI * 2); ctx.fill();
-      // flame tongues
-      ctx.fillStyle = "rgba(255,225,110,.75)";
-      for (let i = 0; i < 7; i++) {
-        const a = -Math.PI / 2 + (i - 3) * .42 + Math.sin(T * 9 + i) * .1;
-        const len = h * (.55 + Math.sin(T * 14 + i * 2) * .18);
-        ctx.beginPath();
-        ctx.moveTo(LEO_X + Math.cos(a - .16) * 26, GY - h * .5 + Math.sin(a - .16) * 30);
-        ctx.lineTo(LEO_X + Math.cos(a) * len, GY - h * .5 + Math.sin(a) * len);
-        ctx.lineTo(LEO_X + Math.cos(a + .16) * 26, GY - h * .5 + Math.sin(a + .16) * 30);
-        ctx.closePath(); ctx.fill();
-      }
-      // lightning
-      if (Math.random() < .35) {
-        ctx.strokeStyle = "rgba(180,240,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
-        const sx = LEO_X + (Math.random() - .5) * 70, sy = GY - h * (.2 + Math.random() * .8);
-        ctx.beginPath(); ctx.moveTo(sx, sy);
-        for (let i = 0; i < 3; i++) ctx.lineTo(sx + (Math.random() - .5) * 34, sy + (i + 1) * 12 * (Math.random() < .5 ? 1 : -1));
-        ctx.stroke();
-      }
-      // golden glow copy
-      ctx.save();
-      ctx.globalAlpha = .55; ctx.filter = "brightness(2.6) saturate(2)";
-      ctx.drawImage(im, LEO_X - w * 1.06 / 2, GY - h * 1.06 + bob, w * 1.06, h * 1.06);
-      ctx.restore();
-    }
-
     if (s.hurtT > 0) ctx.filter = "brightness(2.4) saturate(.4)";
-    else if (superOn) ctx.filter = "saturate(1.5) brightness(1.25) sepia(.35) hue-rotate(-12deg)";
     ctx.drawImage(im, LEO_X - w / 2, GY - h + bob, w, h);
     ctx.restore();
-
-    const pct = Math.max(0, s.p.hp / s.p.maxHp);
-    const bw = 66, bx = LEO_X - bw / 2, by = GY - h - 16;
-    roundRect(ctx, bx - 2, by - 2, bw + 4, 9, 4); ctx.fillStyle = C.ink; ctx.fill();
-    ctx.fillStyle = pct > .5 ? "#6BE04A" : pct > .25 ? "#FFD54A" : "#FF5C5C";
-    ctx.fillRect(bx, by, bw * pct, 5);
+    healthBar(h);
   };
 
   const drawBall = (ctx, b) => {
