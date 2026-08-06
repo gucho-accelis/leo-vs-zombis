@@ -29,12 +29,6 @@ const SPR = {
   "brun3": "/sprites/characters/leo/common/brun_3.png",
   "brun4": "/sprites/characters/leo/common/brun_4.png",
   "brun5": "/sprites/characters/leo/common/brun_5.png",
-  "brun6": "/sprites/characters/leo/common/brun_6.png",
-  "brun7": "/sprites/characters/leo/common/brun_7.png",
-  "brun8": "/sprites/characters/leo/common/brun_8.png",
-  "brun9": "/sprites/characters/leo/common/brun_9.png",
-  "brun10": "/sprites/characters/leo/common/brun_10.png",
-  "brun11": "/sprites/characters/leo/common/brun_11.png",
   "s_idle": "/sprites/characters/leo/weapons/02_slingshot/idle.png",
   "s_atk": "/sprites/characters/leo/weapons/02_slingshot/attack.png",
   "w_idle": "/sprites/characters/leo/weapons/03_watergun/idle.png",
@@ -65,7 +59,7 @@ const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
    la pantalla de mejoras / el cartel esperan a que termine. */
 const WIN_FRAMES = 11, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
 /* Carrera con balón de baloncesto: 12 frames (brun0..brun11). RUN_SPD ajusta la cadencia. */
-const BRUN_FRAMES = 12, RUN_SPD = 2;
+const BRUN_FRAMES = 6, RUN_SPD = 1;
 const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
