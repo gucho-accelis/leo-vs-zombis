@@ -10,6 +10,18 @@ const SPR = {
   "hurt": "/sprites/characters/leo/common/hurt.png",
   "ko": "/sprites/characters/leo/common/ko.png",
   "win": "/sprites/characters/leo/common/victory.png",
+  "win0": "/sprites/characters/leo/common/win_0.png",
+  "win1": "/sprites/characters/leo/common/win_1.png",
+  "win2": "/sprites/characters/leo/common/win_2.png",
+  "win3": "/sprites/characters/leo/common/win_3.png",
+  "win4": "/sprites/characters/leo/common/win_4.png",
+  "win5": "/sprites/characters/leo/common/win_5.png",
+  "win6": "/sprites/characters/leo/common/win_6.png",
+  "win7": "/sprites/characters/leo/common/win_7.png",
+  "win8": "/sprites/characters/leo/common/win_8.png",
+  "win9": "/sprites/characters/leo/common/win_9.png",
+  "win10": "/sprites/characters/leo/common/win_10.png",
+  "win11": "/sprites/characters/leo/common/win_11.png",
   "b_idle": "/sprites/characters/leo/weapons/01_basketball/idle.png",
   "b_run": "/sprites/characters/leo/weapons/01_basketball/run.png",
   "b_atk": "/sprites/characters/leo/weapons/01_basketball/attack.png",
@@ -38,6 +50,11 @@ const SPR = {
 /* ===== CONFIG ===== */
 const W = 760, H = 420, GY = 372, LEO_X = 175, LEO_H = 104;
 const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
+
+/* Secuencia de victoria: 12 frames (win0..win11). Se reproduce una vez y
+   la pantalla de mejoras / el cartel esperan a que termine. */
+const WIN_FRAMES = 12, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
+const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
   ink: "#241E17", sky1: "#8FD4F0", sky2: "#CFEDF7",
@@ -111,6 +128,7 @@ const freshGame = () => ({
   p: freshP(), coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
   atkT: 0, supT: 0, superT: 0, chargeT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
+  winT: 0, pendingChoices: null,
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0,
 });
 
@@ -241,6 +259,19 @@ export default function LeoRun() {
     }
 
     /* fight */
+    // Secuencia de victoria en curso: Leo celebra quieto y el mundo se congela.
+    // Solo cuando termina se muestra la pantalla de mejoras o se reanuda la carrera.
+    if (s.state === "win") {
+      s.winT += dt;
+      if (s.winT >= WIN_DUR) {
+        if (s.pendingChoices) {
+          setChoices(s.pendingChoices); s.pendingChoices = null; setPhaseBoth("upgrade");
+        } else {
+          showBanner("¡Zona despejada!", false); setPhaseBoth("run");
+        }
+      }
+      syncHud(s); return;
+    }
     if (s.spawnQ.length) {
       s.spawnT += dt;
       while (s.spawnQ.length && s.spawnT >= s.spawnQ[0].delay) {
@@ -312,16 +343,19 @@ export default function LeoRun() {
     }
 
     if (!s.enemies.length && !s.spawnQ.length) {
+      // Arranca la secuencia de victoria; el mundo queda congelado (seguimos en
+      // fase "fight") y la pantalla de mejoras / el cartel esperan a que termine.
       s.enc++;
       s.nextEnc = s.dist + 360 + Math.random() * 150;
-      s.state = "win"; s.poseT = .7;
+      s.state = "win"; s.winT = 0; s.poseT = 0;
       if (s.enc % 3 === 0 || s.enc % 5 === 0) {
         SFX.up();
         const pool = [...UPGRADES];
         WEAPON_CARDS.forEach(c => { if (!p.owned[c.w]) pool.push(c); });
-        setChoices(pool.sort(() => Math.random() - .5).slice(0, 3));
-        setPhaseBoth("upgrade");
-      } else { showBanner("¡Zona despejada!", false); setPhaseBoth("run"); }
+        s.pendingChoices = pool.sort(() => Math.random() - .5).slice(0, 3);
+      } else {
+        s.pendingChoices = null;
+      }
     }
     syncHud(s);
   };
@@ -441,7 +475,7 @@ export default function LeoRun() {
     else if (s.state === "atk") key = wpn.atk;
     else if (s.state === "hurt") key = "hurt";
     else if (s.state === "ko") key = "ko";
-    else if (s.state === "win") key = "win";
+    else if (s.state === "win") key = "win" + Math.min(WIN_FRAMES - 1, Math.floor(s.winT / WIN_FRAME_T));
     const im = IMG.current[key]; if (!im) return;
     const h = LEO_H, w = im.width * h / im.height;
     const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
