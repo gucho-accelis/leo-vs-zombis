@@ -444,7 +444,7 @@ export default function LeoRun() {
     else if (s.state === "win") key = "win";
     const im = IMG.current[key]; if (!im) return;
     const h = LEO_H, w = im.width * h / im.height;
-    const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : Math.sin(T * 3) * 1.5;
+    const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
     const superOn = s.superT > 0 || s.chargeT > 0;
     const charge = s.chargeT > 0 ? 1 - s.chargeT / .7 : 1;
 
