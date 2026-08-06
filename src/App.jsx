@@ -221,7 +221,7 @@ export default function LeoRun() {
 
     if (phaseRef.current === "run") {
       if (s.poseT <= 0) s.state = "run";
-      const v = 170;
+      const v = (s.state === "win" && s.poseT > 0) ? 0 : 170;
       s.worldX += v * dt; s.dist += v * dt; s.anim = s.dist / 24;
       if (Math.random() < dt * 9) s.parts.push({ x: LEO_X - 24, y: GY - 3, vx: -60 - Math.random() * 40, vy: -30 * Math.random(), t: .35, r: 2 + Math.random() * 2, c: "#D9BE8C" });
       if (s.dist >= s.nextEnc) {
