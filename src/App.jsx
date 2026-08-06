@@ -790,7 +790,7 @@ export default function LeoRun() {
 
   const supPct = hud.sup > 0 ? 1 - hud.sup / g.current.p.superCd : 1;
   const owned = g.current.p.owned;
-  const inMenus = phase === "title" || phase === "home";
+  const inMenus = phase === "title";
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center gap-3 p-3 sm:p-5"
@@ -819,7 +819,7 @@ export default function LeoRun() {
       </div>
       )}
 
-      <div className="relative w-full max-w-3xl" style={{ display: phase === "home" ? "none" : undefined }}>
+      <div className="relative w-full max-w-3xl">
         <canvas ref={cv} width={W} height={H} onClick={superShot}
           className="w-full h-auto cursor-pointer touch-none"
           style={{ borderRadius: 18, border: "4px solid " + C.line, display: "block" }} />
@@ -858,7 +858,7 @@ export default function LeoRun() {
         )}
 
         {phase === "title" && (
-          <div className="absolute inset-0 cursor-pointer select-none" onClick={() => { setMenu(null); setPhaseBoth("home"); }}
+          <div className="absolute inset-0 cursor-pointer select-none" onClick={restart}
             style={{ borderRadius: 18, overflow: "hidden", background: "#0c130d" }}>
             <img src="/title.png" alt="Leo & Alex Zombie Run" draggable="false"
               className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
@@ -875,10 +875,6 @@ export default function LeoRun() {
         )}
 
       </div>
-
-      {phase === "home" && (
-        <HomeScreen onPlay={restart} onSettings={() => setMenu("settings")} onTrophy={() => setMenu("trophy")} onBack={() => setPhaseBoth("title")} best={best} />
-      )}
 
       {menu === "settings" && (
         <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(8,14,22,.93)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 }}>
