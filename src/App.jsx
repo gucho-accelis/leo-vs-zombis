@@ -9,7 +9,6 @@ const SPR = {
   "run3": "/sprites/characters/leo/common/run_3.png",
   "hurt": "/sprites/characters/leo/common/hurt.png",
   "ko": "/sprites/characters/leo/common/ko.png",
-  "win": "/sprites/characters/leo/common/victory.png",
   "win0": "/sprites/characters/leo/common/win_0.png",
   "win1": "/sprites/characters/leo/common/win_1.png",
   "win2": "/sprites/characters/leo/common/win_2.png",
