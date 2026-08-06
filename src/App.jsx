@@ -180,6 +180,12 @@ export default function LeoRun() {
     const s = g.current;
     if (s.shakeT > 0) { s.shakeT -= dt; if (s.shakeT <= 0) s.shake = 0; }
     if (s.flash > 0) s.flash -= dt * 3;
+    for (let i = s.balls.length - 1; i >= 0; i--) {
+      const b = s.balls[i];
+      b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 12;
+      if (b.sup && Math.random() < dt * 50) s.parts.push({ x: b.x, y: b.y, vx: -100 - Math.random() * 60, vy: (Math.random() - .5) * 70, t: .3, r: 3 + Math.random() * 4, c: Math.random() < .5 ? "#FF8A3D" : "#FFD54A", g: 0 });
+      if (b.x > W + 60 || b.x < -60 || b.y < -40 || b.y > H + 40) s.balls.splice(i, 1);
+    }
     for (let i = s.parts.length - 1; i >= 0; i--) {
       const p = s.parts[i]; p.t -= dt; p.vy += (p.g === undefined ? 340 : p.g) * dt;
       p.x += p.vx * dt; p.y += p.vy * dt; if (p.t <= 0) s.parts.splice(i, 1);
@@ -221,7 +227,7 @@ export default function LeoRun() {
 
     if (phaseRef.current === "run") {
       if (s.poseT <= 0) s.state = "run";
-      const v = 170;
+      const v = (s.state === "win" && s.poseT > 0) ? 0 : 170;
       s.worldX += v * dt; s.dist += v * dt; s.anim = s.dist / 24;
       if (Math.random() < dt * 9) s.parts.push({ x: LEO_X - 24, y: GY - 3, vx: -60 - Math.random() * 40, vy: -30 * Math.random(), t: .35, r: 2 + Math.random() * 2, c: "#D9BE8C" });
       if (s.dist >= s.nextEnc) {
@@ -277,9 +283,6 @@ export default function LeoRun() {
 
     for (let i = s.balls.length - 1; i >= 0; i--) {
       const b = s.balls[i];
-      b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 12;
-      if (b.sup && Math.random() < dt * 50) s.parts.push({ x: b.x, y: b.y, vx: -100 - Math.random() * 60, vy: (Math.random() - .5) * 70, t: .3, r: 3 + Math.random() * 4, c: Math.random() < .5 ? "#FF8A3D" : "#FFD54A", g: 0 });
-      let gone = b.x > W + 60 || b.y < -40 || b.y > H + 40;
       for (const e of s.enemies) {
         if (e.hp <= 0 || b.hits.includes(e)) continue;
         const c = hitC(e);
@@ -289,11 +292,9 @@ export default function LeoRun() {
             for (const o of s.enemies) if (o !== e && Math.abs(o.x - e.x) < 90) damage(s, o, b.dmg * .5, false);
             s.fx.push({ x: c.x, y: c.y, r: 84, t: .28, c: "#FFD54A" }); shake(8);
           }
-          if (b.hits.length > b.pierce) gone = true;
-          break;
+          if (b.hits.length > b.pierce) { s.balls.splice(i, 1); break; }
         }
       }
-      if (gone) s.balls.splice(i, 1);
     }
 
     for (let i = s.enemies.length - 1; i >= 0; i--) {
