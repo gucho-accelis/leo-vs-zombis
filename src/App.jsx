@@ -45,7 +45,7 @@ const VIC_FRAMES = 7, VIC_FPS = 9, VIC_HOLD = 0.9;
 const VIC_DUR = VIC_FRAMES / VIC_FPS + VIC_HOLD;   // victoria: 7 frames + mantener ultimo
 const FIRE_T = 0.13, HURT_T = 0.3, SVIC_DUR = 0.8; // disparar / dano / victoria super
 const TRANS_DUR = 0.4;       // transformacion: destello + cambio a leo_super
-const SUPER_DUR = 10;        // duracion del modo super (carpeta leo_super, x3 dano)
+const SUPER_DUR = 10;        // duracion del modo super (carpeta leo_super, x2 dano)
 const SUPER_KILLS = 12;      // muertes para llenar la barra de super
 
 const C = {
@@ -122,8 +122,8 @@ const freshGame = () => ({
 function encounter(n) {
   const isBoss = n > 0 && n % 5 === 0;
   const s = Math.pow(1.16, n);
-  if (isBoss) return { boss: true, list: [{ k: "boss", s }, { k: "runner", s }, { k: "runner", s }] };
-  const count = Math.min(6, 2 + Math.floor(n / 2));
+  if (isBoss) return { boss: true, list: [{ k: "boss", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }] };
+  const count = Math.min(18, (2 + Math.floor(n / 2)) * 3);   // x3 enemigos por oleada
   const list = [];
   for (let i = 0; i < count; i++) {
     let k = "walker";
@@ -572,7 +572,7 @@ export default function LeoRun() {
       const ang = Math.atan2(c.y - my, c.x - mx) + spread;
       s.balls.push({
         x: mx, y: my, rot: 0, vx: Math.cos(ang) * WEAPON.spd, vy: Math.sin(ang) * WEAPON.spd,
-        dmg: p.dmg * WEAPON.dmg * (sup ? 3 : 1), pierce: p.pierce + (sup ? 4 : 0), hits: [], sup,
+        dmg: p.dmg * WEAPON.dmg * (sup ? 2 : 1), pierce: p.pierce + (sup ? 4 : 0), hits: [], sup,
         r: sup ? WEAPON.pr * 1.7 : WEAPON.pr,
       });
     }
@@ -930,7 +930,7 @@ export default function LeoRun() {
       )}
       {!inMenus && (
       <p className="max-w-3xl text-xs" style={{ color: "#6F8A7C" }}>
-        Leo corre y dispara solo · llena la barra matando zombis y activa el MODO SÚPER (daño x3) · luego lanza el MURASAKI
+        Leo corre y dispara solo · llena la barra matando zombis y activa el MODO SÚPER (daño x2) · luego lanza el MURASAKI
       </p>
       )}
     </div>
