@@ -1,4 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from "react";
+import { createMurasaki, SUPER_ATTACK_FRAMES } from "./murasaki.js";
 
 // Rutas a los sprites. Personaje v2: todos los frames comparten lienzo 420x440
 // (linea de suelo en y=418, ya alineados). El super usa la carpeta leo_super.
@@ -26,6 +27,8 @@ const SPR = {
   "bg4": "/sprites/backgrounds/bg_04.jpg",
   "bg5": "/sprites/backgrounds/bg_05.jpg"
 };
+// Frames del ataque Murasaki (solo aparecen en modo super, carpeta leo_super).
+SUPER_ATTACK_FRAMES.forEach((k, i) => { SPR[k] = `${SUP}/super_attack_${i}.png`; });
 
 /* ===== CONFIG ===== */
 const W = 760, H = 420, GY = 372, LEO_X = 175, LEO_H = 104;
@@ -41,7 +44,9 @@ const RUN_SEQ = ["run3", "run1", "run0"], RUN_FPS = 10;
 const VIC_FRAMES = 7, VIC_FPS = 9, VIC_HOLD = 0.9;
 const VIC_DUR = VIC_FRAMES / VIC_FPS + VIC_HOLD;   // victoria: 7 frames + mantener ultimo
 const FIRE_T = 0.13, HURT_T = 0.3, SVIC_DUR = 0.8; // disparar / dano / victoria super
-const SUPER_DUR = 4;         // duracion del modo super (usa la carpeta leo_super)
+const TRANS_DUR = 0.4;       // transformacion: destello + cambio a leo_super
+const SUPER_DUR = 10;        // duracion del modo super (carpeta leo_super, x3 dano)
+const SUPER_KILLS = 12;      // muertes para llenar la barra de super
 
 const C = {
   ink: "#241E17", sky1: "#8FD4F0", sky2: "#CFEDF7",
@@ -70,7 +75,7 @@ const UPGRADES = [
   { id: "steal", icon: "🩹", name: "Segundo aire", desc: "+2 vida por golpe", ap: p => { p.steal += 2; } },
   { id: "gold", icon: "💰", name: "Fichaje", desc: "+40% de monedas", ap: p => { p.gold *= 1.4; } },
   { id: "pierce", icon: "🌀", name: "Efecto", desc: "Los tiros atraviesan +1", ap: p => { p.pierce += 1; } },
-  { id: "super", icon: "⚡", name: "Súper recarga", desc: "-30% de espera del súper", ap: p => { p.superCd *= 0.7; } },
+  { id: "super", icon: "⚡", name: "Súper recarga", desc: "-25% de muertes para el súper", ap: p => { p.superKills = Math.max(6, Math.round(p.superKills * 0.75)); } },
 ];
 
 /* ===== SOUND ===== */
@@ -101,14 +106,17 @@ const SFX = {
 /* ===== STATE ===== */
 const freshP = () => ({
   hp: 130, maxHp: 130, dmg: 16, rate: 1, crit: 0.05, multi: 1,
-  armor: 1, steal: 0, gold: 1, pierce: 0, superCd: 8,
+  armor: 1, steal: 0, gold: 1, pierce: 0, superKills: SUPER_KILLS,
 });
 const freshGame = () => ({
   p: freshP(), coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
-  atkT: 0, supT: 0, superT: 0, superWin: false, state: "run", anim: 0, poseT: 0, hurtT: 0,
-  winT: 0, pendingChoices: null,
-  shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0,
+  atkT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
+  winT: 0, pendingChoices: null, superWin: false,
+  // super: barra que se llena al matar; fases off -> trans -> active -> murasaki
+  superFill: 0, superPhase: "off", transT: 0, superT: 0, superSprite: false,
+  murasaki: null, mHits: null, mOrb: null,
+  shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0, flashWhite: false,
 });
 
 function encounter(n) {
@@ -303,7 +311,7 @@ export default function LeoRun() {
   const phaseRef = useRef("title");
   const [ready, setReady] = useState(false);
   const [phase, setPhase] = useState("title");
-  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0 });
+  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, superPct: 0, superReady: false, superActive: false, superT: 0 });
   const [choices, setChoices] = useState([]);
   const [taken, setTaken] = useState([]);
   const [muted, setMuted] = useState(false);
@@ -351,7 +359,7 @@ export default function LeoRun() {
   const cosmetic = dt => {
     const s = g.current;
     if (s.shakeT > 0) { s.shakeT -= dt; if (s.shakeT <= 0) s.shake = 0; }
-    if (s.flash > 0) s.flash -= dt * 3;
+    if (s.flash > 0) { s.flash -= dt * 3; if (s.flash <= 0) s.flashWhite = false; }
     for (let i = s.balls.length - 1; i >= 0; i--) {
       const b = s.balls[i];
       b.x += b.vx * dt; b.y += b.vy * dt; b.rot += dt * 12;
@@ -370,15 +378,10 @@ export default function LeoRun() {
   const step = dt => {
     const s = g.current, p = s.p;
     cosmetic(dt);
-    if (s.supT > 0) s.supT -= dt;
     if (s.hurtT > 0) s.hurtT -= dt;
     if (s.poseT > 0) { s.poseT -= dt; if (s.poseT <= 0 && (s.state === "atk" || s.state === "hurt" || s.state === "win")) s.state = phaseRef.current === "run" ? "run" : "idle"; }
 
-    /* super: durante SUPER_DUR Leo usa la carpeta leo_super y dispara reforzado */
-    if (s.superT > 0) {
-      s.superT -= dt;
-      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 16, vx: (Math.random() - .5) * 30, vy: -150 - Math.random() * 130, t: .45, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#C69BFF" : "#8FD6FF", g: -40 });
-    }
+    superStep(s, p, dt);
 
     if (phaseRef.current === "run") {
       if (s.poseT <= 0) s.state = "run";
@@ -443,8 +446,9 @@ export default function LeoRun() {
 
     s.atkT -= dt;
     const visible = s.enemies.some(e => e.x < W - 40);
-    if (s.atkT <= 0 && visible) {
-      s.atkT = WEAPON.rate * p.rate * (s.superT > 0 ? .5 : 1);   // súper: dispara más rápido
+    // durante el Murasaki no dispara la pistola: el ataque es la esfera
+    if (s.atkT <= 0 && visible && s.superPhase !== "murasaki") {
+      s.atkT = WEAPON.rate * p.rate * (s.superSprite ? .5 : 1);   // súper: dispara al doble
       fire(s);
     }
 
@@ -469,6 +473,7 @@ export default function LeoRun() {
       const k = KINDS[e.kind], c = hitC(e);
       const gain = Math.round(k.gold * p.gold);
       s.coins += gain; SFX.die();
+      if (s.superPhase === "off") s.superFill = Math.min(p.superKills, s.superFill + 1);  // llena la barra
       for (let n = 0; n < (k.boss ? 30 : 12); n++) {
         const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 170;
         s.parts.push({ x: c.x, y: c.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 80, t: .5 + Math.random() * .4, r: 2 + Math.random() * 5, c: k.goo });
@@ -483,8 +488,8 @@ export default function LeoRun() {
       // fase "fight") y la pantalla de mejoras / el cartel esperan a que termine.
       s.enc++;
       s.nextEnc = s.dist + 360 + Math.random() * 150;
-      s.superWin = s.superT > 0;   // si estaba en súper, la victoria usa leo_super (frame unico)
-      s.state = "win"; s.winT = 0; s.poseT = 0; s.superT = 0;
+      s.superWin = s.superSprite;   // si esta en súper, la victoria usa leo_super (frame unico)
+      s.state = "win"; s.winT = 0; s.poseT = 0;
       if (s.enc % 3 === 0 || s.enc % 5 === 0) {
         SFX.up();
         s.pendingChoices = [...UPGRADES].sort(() => Math.random() - .5).slice(0, 3);
@@ -495,6 +500,63 @@ export default function LeoRun() {
     syncHud(s);
   };
 
+  /* ---- super (barra -> transformacion -> 10s -> murasaki) ---- */
+  const startSuper = s => {
+    if (s.superPhase !== "off" || s.superFill < s.p.superKills) return;
+    s.superFill = 0; s.superPhase = "trans"; s.transT = TRANS_DUR;
+    SFX.charge();
+  };
+  const launchMurasaki = s => {
+    s.murasaki = createMurasaki(); s.mHits = new Set(); s.mOrb = null;
+    s.superPhase = "murasaki"; s.superT = 0; SFX.charge();
+  };
+  const endSuper = s => {
+    // Vuelta a leo: el cambio se hace bajo el destello blanco, sin corte visible.
+    s.superPhase = "off"; s.superSprite = false;
+    s.murasaki = null; s.mHits = null; s.mOrb = null; s.superT = 0;
+    s.flash = .9; s.flashWhite = true; SFX.blast();
+  };
+
+  const superStep = (s, p, dt) => {
+    if (s.superPhase === "trans") {
+      s.transT -= dt;
+      const prog = Math.min(1, 1 - s.transT / TRANS_DUR);   // 0..1
+      s.flash = Math.sin(prog * Math.PI) * 0.95; s.flashWhite = true;  // destello, pico a la mitad
+      shake(4 + prog * 14);                                  // sacudida creciente
+      for (let i = 0; i < 3; i++) s.parts.push({            // particulas doradas subiendo del suelo
+        x: LEO_X + (Math.random() - .5) * 90, y: GY - Math.random() * 6,
+        vx: (Math.random() - .5) * 40, vy: -140 - Math.random() * 180,
+        t: .6, r: 2 + Math.random() * 4, c: Math.random() < .5 ? "#FFD54A" : "#FFB43D", g: -20,
+      });
+      if (prog >= 0.5 && !s.superSprite) { s.superSprite = true; SFX.blast(); }  // pico: swap a leo_super
+      if (s.transT <= 0) { s.superPhase = "active"; s.superT = SUPER_DUR; }
+      return;
+    }
+    if (s.superPhase === "active") {
+      s.superT -= dt;
+      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 16, vx: (Math.random() - .5) * 30, vy: -150 - Math.random() * 130, t: .45, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#C69BFF" : "#8FD6FF", g: -40 });
+      if (s.superT <= 0) { if (s.enemies.length) launchMurasaki(s); else endSuper(s); }
+      return;
+    }
+    if (s.superPhase === "murasaki") {
+      const r = s.murasaki.update(dt);
+      if (r.shake) shake(r.shake);
+      if (r.flash) { s.flash = Math.max(s.flash, r.flash + .35); s.flashWhite = true; }
+      // Colision de la esfera (hitbox de draw() del frame anterior): 10x, atraviesa toda la fila.
+      if (s.mOrb) {
+        for (const e of s.enemies) {
+          if (e.hp <= 0 || s.mHits.has(e)) continue;
+          const c = hitC(e);
+          if (Math.hypot(s.mOrb.x - c.x, s.mOrb.y - c.y) < c.r + s.mOrb.r) {
+            s.mHits.add(e); damage(s, e, p.dmg * WEAPON.dmg * 10, true);
+            s.fx.push({ x: c.x, y: c.y, r: 96, t: .3, c: "#C69BFF" }); shake(7);
+          }
+        }
+      }
+      if (r.done) endSuper(s);
+    }
+  };
+
   const fire = s => {
     const p = s.p;
     s.state = "atk"; s.poseT = FIRE_T;   // disparar -> vuelve a apuntar
@@ -503,14 +565,14 @@ export default function LeoRun() {
     if (!tgt) return;
     const c = hitC(tgt);
     const mx = LEO_X + 52, my = GY - 56;
-    const sup = s.superT > 0;
+    const sup = s.superSprite;
     const n = sup ? p.multi + 1 : p.multi;
     for (let i = 0; i < n; i++) {
       const spread = (i - (n - 1) / 2) * 0.09;
       const ang = Math.atan2(c.y - my, c.x - mx) + spread;
       s.balls.push({
         x: mx, y: my, rot: 0, vx: Math.cos(ang) * WEAPON.spd, vy: Math.sin(ang) * WEAPON.spd,
-        dmg: p.dmg * WEAPON.dmg * (sup ? 4 : 1), pierce: p.pierce + (sup ? 4 : 0), hits: [], sup,
+        dmg: p.dmg * WEAPON.dmg * (sup ? 3 : 1), pierce: p.pierce + (sup ? 4 : 0), hits: [], sup,
         r: sup ? WEAPON.pr * 1.7 : WEAPON.pr,
       });
     }
@@ -530,9 +592,14 @@ export default function LeoRun() {
   const showBanner = (txt, boss) => { setBanner({ txt, boss, k: Date.now() }); setTimeout(() => setBanner(null), 1500); };
 
   const syncHud = s => setHud(h => {
-    const sup = Math.max(0, s.supT);
-    if (h.hp === s.p.hp && h.maxHp === s.p.maxHp && h.coins === s.coins && h.enc === s.enc && Math.abs(h.sup - sup) < .05) return h;
-    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, sup };
+    const superPct = Math.min(1, s.superFill / s.p.superKills);
+    const superReady = s.superFill >= s.p.superKills && s.superPhase === "off";
+    const superActive = s.superPhase === "active";
+    const superT = Math.max(0, s.superT);
+    if (h.hp === s.p.hp && h.maxHp === s.p.maxHp && h.coins === s.coins && h.enc === s.enc
+      && Math.abs(h.superPct - superPct) < .01 && h.superReady === superReady
+      && h.superActive === superActive && Math.abs(h.superT - superT) < .2) return h;
+    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, superPct, superReady, superActive, superT };
   });
 
   /* ---- draw ---- */
@@ -547,6 +614,11 @@ export default function LeoRun() {
 
     for (const e of s.enemies) drawEnemy(ctx, e);
     drawLeo(ctx, s, T);
+    // Murasaki: la esfera se dibuja DESPUES del personaje (queda sobre la mano).
+    if (s.superPhase === "murasaki" && s.murasaki) {
+      const w = FRAME_W * DRAW_SC, dx = LEO_X - w / 2, dy = GY - GROUND * DRAW_SC;
+      s.mOrb = s.murasaki.draw(ctx, { x: dx, y: dy, scale: DRAW_SC });
+    }
     for (const b of s.balls) drawBall(ctx, b);
 
     for (const p of s.parts) { ctx.globalAlpha = Math.min(1, p.t * 2.4); ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill(); }
@@ -565,7 +637,8 @@ export default function LeoRun() {
     }
     if (s.flash > 0) {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.fillStyle = "rgba(210,236,255," + Math.min(.85, s.flash) + ")";
+      const rgb = s.flashWhite ? "255,255,255" : "210,236,255";
+      ctx.fillStyle = "rgba(" + rgb + "," + Math.min(.9, s.flash) + ")";
       ctx.fillRect(0, 0, W, H);
     }
   };
@@ -600,11 +673,12 @@ export default function LeoRun() {
   };
 
   const drawLeo = (ctx, s, T) => {
-    const superOn = s.superT > 0;
+    const superOn = s.superSprite;
     const pre = superOn ? "s_" : "";
     // Elegir frame segun estado (spec animaciones.json)
     let key;
-    if (s.state === "win") key = s.superWin ? "s_vic" : "v" + Math.min(VIC_FRAMES - 1, Math.floor(s.winT * VIC_FPS));
+    if (s.superPhase === "murasaki" && s.murasaki) key = s.murasaki.frameName;  // frames super_attack
+    else if (s.state === "win") key = s.superWin ? "s_vic" : "v" + Math.min(VIC_FRAMES - 1, Math.floor(s.winT * VIC_FPS));
     else if (s.state === "run") key = pre + RUN_SEQ[Math.floor(T * RUN_FPS) % RUN_SEQ.length];
     else if (s.state === "atk") key = pre + "fire";
     else if (s.state === "hurt" || s.state === "ko") key = pre + "hurt";
@@ -691,8 +765,11 @@ export default function LeoRun() {
   /* ---- input ---- */
   const superShot = () => {
     const s = g.current;
-    if (phaseRef.current !== "fight" || s.supT > 0 || s.superT > 0 || !s.enemies.length) return;
-    s.supT = s.p.superCd; s.superT = SUPER_DUR; s.flash = .5; shake(10); SFX.charge(); SFX.blast();
+    // En súper: el botón lanza el Murasaki (si hay enemigos).
+    if (s.superPhase === "active") { if (s.enemies.length) launchMurasaki(s); return; }
+    // Fuera de súper: solo si la barra está llena y hay combate.
+    if (phaseRef.current !== "fight" || !s.enemies.length) return;
+    startSuper(s);
   };
   const takeUp = u => {
     const s = g.current;
@@ -702,11 +779,10 @@ export default function LeoRun() {
   const restart = useCallback(() => {
     const clouds = g.current.clouds;
     g.current = freshGame(); g.current.clouds = clouds;
-    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0 });
+    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, superPct: 0, superReady: false, superActive: false, superT: 0 });
     setMenu(null); setPhaseBoth("run");
   }, []);
 
-  const supPct = hud.sup > 0 ? 1 - hud.sup / g.current.p.superCd : 1;
   const inMenus = phase === "title";
 
   return (
@@ -732,6 +808,23 @@ export default function LeoRun() {
           </div>
           <span style={{ color: "#FFD54A" }}>💰 {hud.coins}</span>
           <span style={{ color: "#7DD3FC" }}>⚔️ {hud.enc}</span>
+        </div>
+      </div>
+      )}
+
+      {/* Barra de súper: debajo de la vida, se llena al matar enemigos. */}
+      {!inMenus && (
+      <div className="w-full max-w-3xl flex items-center gap-2 -mt-1">
+        <span className="text-xs font-black" style={{ color: "#C69BFF" }}>⚡</span>
+        <div style={{ flex: 1, height: 11, background: "#20142e", borderRadius: 6, overflow: "hidden", border: "2px solid " + C.line, position: "relative" }}>
+          <div style={{
+            width: (hud.superActive ? (hud.superT / SUPER_DUR * 100) : (hud.superPct * 100)) + "%", height: "100%",
+            background: hud.superActive ? "linear-gradient(90deg,#D946EF,#8B5CF6)" : hud.superReady ? "linear-gradient(90deg,#FFD54A,#C69BFF)" : "#8B5CF6",
+            transition: "width .2s",
+          }} />
+          <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 900, letterSpacing: .5, color: "#fff", textShadow: "0 1px 2px rgba(0,0,0,.6)" }}>
+            {hud.superActive ? "SÚPER · " + Math.ceil(hud.superT) + "s" : hud.superReady ? "¡SÚPER LISTO!" : "SÚPER"}
+          </span>
         </div>
       </div>
       )}
@@ -815,11 +908,15 @@ export default function LeoRun() {
 
       {!inMenus && (
       <div className="w-full max-w-3xl flex items-center gap-2">
-        <button onClick={superShot} disabled={hud.sup > 0}
+        <button onClick={superShot} disabled={!hud.superReady && !hud.superActive}
           className="flex-1 py-3 font-black text-base relative overflow-hidden"
-          style={{ background: hud.sup > 0 ? "#3E5646" : "#8B5CF6", color: hud.sup > 0 ? "#7E9488" : "#fff", borderRadius: 14, boxShadow: hud.sup > 0 ? "none" : "0 4px 0 rgba(0,0,0,.35)" }}>
-          <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: (supPct * 100) + "%", background: "rgba(196,155,255,.4)" }} />
-          <span style={{ position: "relative" }}>⚡ MODO SÚPER {hud.sup > 0 ? Math.ceil(hud.sup) + "s" : ""}</span>
+          style={{
+            background: hud.superActive ? "#D946EF" : hud.superReady ? "#8B5CF6" : "#3E5646",
+            color: (hud.superReady || hud.superActive) ? "#fff" : "#7E9488", borderRadius: 14,
+            boxShadow: (hud.superReady || hud.superActive) ? "0 4px 0 rgba(0,0,0,.35)" : "none",
+          }}>
+          {!hud.superActive && <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: (hud.superPct * 100) + "%", background: "rgba(196,155,255,.35)" }} />}
+          <span style={{ position: "relative" }}>{hud.superActive ? "🔮 MURASAKI · " + Math.ceil(hud.superT) + "s" : "⚡ MODO SÚPER"}</span>
         </button>
         <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-4 py-3 font-black text-sm"
           style={{ borderRadius: 14, border: "3px solid " + C.line, color: "#9BB3A6" }}>{muted ? "🔇" : "🔊"}</button>
@@ -833,7 +930,7 @@ export default function LeoRun() {
       )}
       {!inMenus && (
       <p className="max-w-3xl text-xs" style={{ color: "#6F8A7C" }}>
-        Leo corre y dispara solo · toca la pantalla para el MODO SÚPER (daño x5) · las armas nuevas salen como mejora
+        Leo corre y dispara solo · llena la barra matando zombis y activa el MODO SÚPER (daño x3) · luego lanza el MURASAKI
       </p>
       )}
     </div>
