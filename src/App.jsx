@@ -23,12 +23,6 @@ const SPR = {
   "b_idle": "/sprites/characters/leo/weapons/01_basketball/idle.png",
   "b_run": "/sprites/characters/leo/weapons/01_basketball/run.png",
   "b_atk": "/sprites/characters/leo/weapons/01_basketball/attack.png",
-  "brun0": "/sprites/characters/leo/common/brun_0.png",
-  "brun1": "/sprites/characters/leo/common/brun_1.png",
-  "brun2": "/sprites/characters/leo/common/brun_2.png",
-  "brun3": "/sprites/characters/leo/common/brun_3.png",
-  "brun4": "/sprites/characters/leo/common/brun_4.png",
-  "brun5": "/sprites/characters/leo/common/brun_5.png",
   "s_idle": "/sprites/characters/leo/weapons/02_slingshot/idle.png",
   "s_atk": "/sprites/characters/leo/weapons/02_slingshot/attack.png",
   "w_idle": "/sprites/characters/leo/weapons/03_watergun/idle.png",
@@ -58,8 +52,6 @@ const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
 /* Secuencia de victoria: 12 frames (win0..win11). Se reproduce una vez y
    la pantalla de mejoras / el cartel esperan a que termine. */
 const WIN_FRAMES = 11, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
-/* Carrera con balón de baloncesto: 12 frames (brun0..brun11). RUN_SPD ajusta la cadencia. */
-const BRUN_FRAMES = 6, RUN_SPD = 1;
 const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
 
 const C = {
@@ -650,8 +642,8 @@ export default function LeoRun() {
     const wpn = WEAPONS[s.p.weapon];
     let key = wpn.idle;
     if (s.state === "run") {
-      if (s.p.weapon === "basket") key = "brun" + (Math.floor(s.anim * RUN_SPD) % BRUN_FRAMES);
-      else { const seq = [0, 1, 2, 3, 2, 1]; key = "run" + seq[Math.floor(s.anim) % 6]; }
+      const seq = [0, 1, 2, 3, 2, 1];
+      key = wpn.run && Math.floor(s.anim) % 2 === 0 ? wpn.run : "run" + seq[Math.floor(s.anim) % 6];
     }
     else if (s.state === "atk") key = wpn.atk;
     else if (s.state === "hurt") key = "hurt";
