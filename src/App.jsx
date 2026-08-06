@@ -1,46 +1,15 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 
-// Rutas a los sprites. Estan en public/sprites/, asi que la ruta empieza por /sprites/.
-// Para cambiar una animacion, cambia solo la ruta de esta lista.
+// Rutas a los sprites. Personaje v2: todos los frames comparten lienzo 420x440
+// (linea de suelo en y=418, ya alineados). El super usa la carpeta leo_super.
+const LEO = "/sprites/characters/leo", SUP = "/sprites/characters/leo_super";
 const SPR = {
-  "run0": "/sprites/characters/leo/common/run_0.png",
-  "run1": "/sprites/characters/leo/common/run_1.png",
-  "run2": "/sprites/characters/leo/common/run_2.png",
-  "run3": "/sprites/characters/leo/common/run_3.png",
-  "hurt": "/sprites/characters/leo/common/hurt.png",
-  "ko": "/sprites/characters/leo/common/ko.png",
-  "win0": "/sprites/characters/leo/common/win_0.png",
-  "win1": "/sprites/characters/leo/common/win_1.png",
-  "win2": "/sprites/characters/leo/common/win_2.png",
-  "win3": "/sprites/characters/leo/common/win_3.png",
-  "win4": "/sprites/characters/leo/common/win_4.png",
-  "win5": "/sprites/characters/leo/common/win_5.png",
-  "win6": "/sprites/characters/leo/common/win_6.png",
-  "win7": "/sprites/characters/leo/common/win_7.png",
-  "win8": "/sprites/characters/leo/common/win_8.png",
-  "win9": "/sprites/characters/leo/common/win_9.png",
-  "win10": "/sprites/characters/leo/common/win_10.png",
-  "b_idle": "/sprites/characters/leo/weapons/01_basketball/idle.png",
-  "b_run": "/sprites/characters/leo/weapons/01_basketball/run.png",
-  "b_atk": "/sprites/characters/leo/weapons/01_basketball/attack.png",
-  "crun0": "/sprites/characters/leo/common/crun_0.png",
-  "crun1": "/sprites/characters/leo/common/crun_1.png",
-  "crun2": "/sprites/characters/leo/common/crun_2.png",
-  "crun3": "/sprites/characters/leo/common/crun_3.png",
-  "crun4": "/sprites/characters/leo/common/crun_4.png",
-  "crun5": "/sprites/characters/leo/common/crun_5.png",
-  "tf0": "/sprites/characters/leo/common/tf_0.png",
-  "tf1": "/sprites/characters/leo/common/tf_1.png",
-  "tf2": "/sprites/characters/leo/common/tf_2.png",
-  "tf3": "/sprites/characters/leo/common/tf_3.png",
-  "ta0": "/sprites/characters/leo/common/ta_0.png",
-  "ta1": "/sprites/characters/leo/common/ta_1.png",
-  "ta2": "/sprites/characters/leo/common/ta_2.png",
-  "s_idle": "/sprites/characters/leo/weapons/02_slingshot/idle.png",
-  "s_atk": "/sprites/characters/leo/weapons/02_slingshot/attack.png",
-  "w_idle": "/sprites/characters/leo/weapons/03_watergun/idle.png",
-  "w_atk": "/sprites/characters/leo/weapons/03_watergun/attack.png",
-  "p_ball": "/sprites/projectiles/basketball.png",
+  "idle": `${LEO}/idle.png`, "aim": `${LEO}/aim.png`, "fire": `${LEO}/fire.png`, "hurt": `${LEO}/hurt.png`,
+  "run0": `${LEO}/run_0.png`, "run1": `${LEO}/run_1.png`, "run3": `${LEO}/run_3.png`,
+  "v0": `${LEO}/victory_0.png`, "v1": `${LEO}/victory_1.png`, "v2": `${LEO}/victory_2.png`, "v3": `${LEO}/victory_3.png`,
+  "v4": `${LEO}/victory_4.png`, "v5": `${LEO}/victory_5.png`, "v6": `${LEO}/victory_6.png`,
+  "s_idle": `${SUP}/idle.png`, "s_aim": `${SUP}/aim.png`, "s_fire": `${SUP}/fire.png`, "s_hurt": `${SUP}/hurt.png`,
+  "s_run0": `${SUP}/run_0.png`, "s_run1": `${SUP}/run_1.png`, "s_run3": `${SUP}/run_3.png`, "s_vic": `${SUP}/victory.png`,
   "p_spray": "/sprites/projectiles/water_spray.png",
   "z1_w0": "/sprites/enemies/01_kid/walk_0.png",
   "z1_w1": "/sprites/enemies/01_kid/walk_1.png",
@@ -62,24 +31,17 @@ const SPR = {
 const W = 760, H = 420, GY = 372, LEO_X = 175, LEO_H = 104;
 const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
 
-/* Secuencia de victoria: 12 frames (win0..win11). Se reproduce una vez y
-   la pantalla de mejoras / el cartel esperan a que termine. */
-const WIN_FRAMES = 11, WIN_FRAME_T = 0.08, WIN_HOLD = 0.35;
-/* Carrera unificada (misma para todas las armas): 6 frames crun0..crun5. */
-const CRUN_FRAMES = 6, RUN_SPD = 1;
-/* MODO SÚPER: secuencia ping-pong idle(1-4)+attack(1-3) y vuelta. Todos los frames
-   comparten el lienzo 462x611 con los pies anclados en (142,608). */
-const SUPER_SEQ = ["tf0", "tf1", "tf2", "tf3", "ta0", "ta1", "ta2", "ta1", "ta0", "tf3", "tf2", "tf1", "tf0"];
-const SUPER_FRAME_T = 0.09;
-const SUPER_DUR = SUPER_SEQ.length * SUPER_FRAME_T;   // dura una sola pasada
-const SUPER_APEX_T = 6 * SUPER_FRAME_T;               // momento del golpe (frame a3): un único disparo
-/* Escala unificada: la camiseta (normalizada a 360px en el sprite) se dibuja a 93px,
-   igual que idle/correr, para que Leo mida lo mismo en todas las animaciones.
-   Victoria y súper llevan lienzo propio con los pies anclados en (FX,FY). */
-const SC_BODY = 93 / 360;
-const WIN_W = 242, WIN_H = 397, WIN_FX = 98, WIN_FY = 394;
-const SUP_W = 441, SUP_H = 548, SUP_FX = 160, SUP_FY = 544;
-const WIN_DUR = WIN_FRAMES * WIN_FRAME_T + WIN_HOLD;
+/* Personaje v2: todos los frames comparten lienzo 420x440 con la linea de suelo
+   en y=418, ya alineados por pies y eje de cabeza. Se dibujan todos igual (una
+   sola escala), colocando la linea de suelo del frame sobre GY. */
+const FRAME_W = 420, FRAME_H = 440, GROUND = 418;
+const DRAW_SC = 104 / 392;   // el personaje (~392px de alto) se dibuja a ~104px
+/* Animaciones (segun animaciones.json) */
+const RUN_SEQ = ["run3", "run1", "run0"], RUN_FPS = 10;
+const VIC_FRAMES = 7, VIC_FPS = 9, VIC_HOLD = 0.9;
+const VIC_DUR = VIC_FRAMES / VIC_FPS + VIC_HOLD;   // victoria: 7 frames + mantener ultimo
+const FIRE_T = 0.13, HURT_T = 0.3, SVIC_DUR = 0.8; // disparar / dano / victoria super
+const SUPER_DUR = 4;         // duracion del modo super (usa la carpeta leo_super)
 
 const C = {
   ink: "#241E17", sky1: "#8FD4F0", sky2: "#CFEDF7",
@@ -88,11 +50,8 @@ const C = {
   ui: "#1E2A22", card: "#2B3B31", line: "#3E5646",
 };
 
-const WEAPONS = {
-  basket: { key: "basket", name: "Balón de baloncesto", icon: "🏀", idle: "b_idle", run: "b_run", atk: "b_atk", dmg: 1.5, rate: 1.0, spd: 620, pr: 15, proj: "p_ball", desc: "Fuerte y lento" },
-  sling: { key: "sling", name: "Tirachinas", icon: "🪃", idle: "s_idle", run: null, atk: "s_atk", dmg: 0.8, rate: 0.5, spd: 900, pr: 7, proj: null, desc: "Rápido y preciso" },
-  water: { key: "water", name: "Pistola de agua", icon: "🔫", idle: "w_idle", run: null, atk: "w_atk", dmg: 0.4, rate: 0.24, spd: 760, pr: 13, proj: "p_spray", desc: "Ráfaga, atraviesa" },
-};
+/* Arma unica: pistola de agua (rafaga rapida que atraviesa). */
+const WEAPON = { name: "Pistola de agua", icon: "🔫", dmg: 0.55, rate: 0.3, spd: 820, pr: 12, proj: "p_spray" };
 
 const KINDS = {
   walker: { hp: 46, spd: 30, dmg: 7, h: 92, gold: 9, goo: "#8FA84F", frames: ["z2_w0", "z2_w1"], atk: "z2_atk", fps: 4 },
@@ -112,10 +71,6 @@ const UPGRADES = [
   { id: "gold", icon: "💰", name: "Fichaje", desc: "+40% de monedas", ap: p => { p.gold *= 1.4; } },
   { id: "pierce", icon: "🌀", name: "Efecto", desc: "Los tiros atraviesan +1", ap: p => { p.pierce += 1; } },
   { id: "super", icon: "⚡", name: "Súper recarga", desc: "-30% de espera del súper", ap: p => { p.superCd *= 0.7; } },
-];
-const WEAPON_CARDS = [
-  { id: "w_sling", icon: "🪃", name: "¡Tirachinas!", desc: "Arma nueva: rápida y precisa", w: "sling" },
-  { id: "w_water", icon: "🔫", name: "¡Pistola de agua!", desc: "Arma nueva: ráfaga que atraviesa", w: "water" },
 ];
 
 /* ===== SOUND ===== */
@@ -147,12 +102,11 @@ const SFX = {
 const freshP = () => ({
   hp: 130, maxHp: 130, dmg: 16, rate: 1, crit: 0.05, multi: 1,
   armor: 1, steal: 0, gold: 1, pierce: 0, superCd: 8,
-  weapon: "basket", owned: { basket: true },
 });
 const freshGame = () => ({
   p: freshP(), coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
-  atkT: 0, supT: 0, superT: 0, chargeT: 0, superAnimT: 0, superFired: false, state: "run", anim: 0, poseT: 0, hurtT: 0,
+  atkT: 0, supT: 0, superT: 0, superWin: false, state: "run", anim: 0, poseT: 0, hurtT: 0,
   winT: 0, pendingChoices: null,
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0,
 });
@@ -349,7 +303,7 @@ export default function LeoRun() {
   const phaseRef = useRef("title");
   const [ready, setReady] = useState(false);
   const [phase, setPhase] = useState("title");
-  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0, weapon: "basket" });
+  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0 });
   const [choices, setChoices] = useState([]);
   const [taken, setTaken] = useState([]);
   const [muted, setMuted] = useState(false);
@@ -418,30 +372,12 @@ export default function LeoRun() {
     cosmetic(dt);
     if (s.supT > 0) s.supT -= dt;
     if (s.hurtT > 0) s.hurtT -= dt;
-    s.superAnimT = s.superT > 0 ? s.superAnimT + dt : 0;
     if (s.poseT > 0) { s.poseT -= dt; if (s.poseT <= 0 && (s.state === "atk" || s.state === "hurt" || s.state === "win")) s.state = phaseRef.current === "run" ? "run" : "idle"; }
 
-    /* super: una sola pasada (transformación → un disparo → vuelta) */
+    /* super: durante SUPER_DUR Leo usa la carpeta leo_super y dispara reforzado */
     if (s.superT > 0) {
       s.superT -= dt;
-      // partículas de aura durante todo el súper
-      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 14, vx: (Math.random() - .5) * 30, vy: -180 - Math.random() * 120, t: .45, r: 2 + Math.random() * 3, c: "#8FD6FF", g: -40 });
-      // carga hacia arriba mientras se transforma (antes del golpe)
-      if (s.superAnimT < SUPER_APEX_T) {
-        for (let i = 0; i < 3; i++) {
-          const a = Math.random() * Math.PI * 2;
-          s.parts.push({ x: LEO_X + Math.cos(a) * 46, y: GY - 10 - Math.random() * 20, vx: -Math.cos(a) * 40, vy: -160 - Math.random() * 140, t: .5, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#7EC8FF" : "#FFFFFF", g: -60 });
-        }
-        shake(3);
-      }
-      // un ÚNICO disparo potente en el golpe
-      if (!s.superFired && s.superAnimT >= SUPER_APEX_T) {
-        s.superFired = true; s.flash = 1; shake(14); SFX.blast(); fire(s);
-        for (let i = 0; i < 44; i++) {
-          const a = Math.random() * Math.PI * 2, sp = 120 + Math.random() * 320;
-          s.parts.push({ x: LEO_X, y: GY - 52, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: .55, r: 2 + Math.random() * 5, c: Math.random() < .5 ? "#6FB8FF" : "#DDF2FF", g: 40 });
-        }
-      }
+      for (let i = 0; i < 2; i++) s.parts.push({ x: LEO_X + (Math.random() - .5) * 54, y: GY - Math.random() * 16, vx: (Math.random() - .5) * 30, vy: -150 - Math.random() * 130, t: .45, r: 2 + Math.random() * 3, c: Math.random() < .5 ? "#C69BFF" : "#8FD6FF", g: -40 });
     }
 
     if (phaseRef.current === "run") {
@@ -464,7 +400,7 @@ export default function LeoRun() {
     // Solo cuando termina se muestra la pantalla de mejoras o se reanuda la carrera.
     if (s.state === "win") {
       s.winT += dt;
-      if (s.winT >= WIN_DUR) {
+      if (s.winT >= (s.superWin ? SVIC_DUR : VIC_DUR)) {
         if (s.pendingChoices) {
           setChoices(s.pendingChoices); s.pendingChoices = null; setPhaseBoth("upgrade");
         } else {
@@ -505,11 +441,10 @@ export default function LeoRun() {
 
     if (s.poseT <= 0 && s.state === "run") s.state = "idle";
 
-    const wpn = WEAPONS[p.weapon];
     s.atkT -= dt;
     const visible = s.enemies.some(e => e.x < W - 40);
-    if (s.superT <= 0 && s.atkT <= 0 && visible) {   // durante el súper no dispara normal (solo el golpe único)
-      s.atkT = wpn.rate * p.rate;
+    if (s.atkT <= 0 && visible) {
+      s.atkT = WEAPON.rate * p.rate * (s.superT > 0 ? .5 : 1);   // súper: dispara más rápido
       fire(s);
     }
 
@@ -548,12 +483,11 @@ export default function LeoRun() {
       // fase "fight") y la pantalla de mejoras / el cartel esperan a que termine.
       s.enc++;
       s.nextEnc = s.dist + 360 + Math.random() * 150;
-      s.state = "win"; s.winT = 0; s.poseT = 0; s.superT = 0;   // termina el súper al despejar
+      s.superWin = s.superT > 0;   // si estaba en súper, la victoria usa leo_super (frame unico)
+      s.state = "win"; s.winT = 0; s.poseT = 0; s.superT = 0;
       if (s.enc % 3 === 0 || s.enc % 5 === 0) {
         SFX.up();
-        const pool = [...UPGRADES];
-        WEAPON_CARDS.forEach(c => { if (!p.owned[c.w]) pool.push(c); });
-        s.pendingChoices = pool.sort(() => Math.random() - .5).slice(0, 3);
+        s.pendingChoices = [...UPGRADES].sort(() => Math.random() - .5).slice(0, 3);
       } else {
         s.pendingChoices = null;
       }
@@ -562,27 +496,26 @@ export default function LeoRun() {
   };
 
   const fire = s => {
-    const p = s.p, wpn = WEAPONS[p.weapon];
-    s.state = "atk"; s.poseT = Math.max(.16, wpn.rate * .7);
+    const p = s.p;
+    s.state = "atk"; s.poseT = FIRE_T;   // disparar -> vuelve a apuntar
     let tgt = null, bx = Infinity;
     for (const e of s.enemies) if (e.x < bx && e.x < W - 20) { bx = e.x; tgt = e; }
     if (!tgt) return;
     const c = hitC(tgt);
-    const mx = LEO_X + 40, my = GY - 56;
+    const mx = LEO_X + 52, my = GY - 56;
     const sup = s.superT > 0;
-    const n = sup ? 2 : p.multi;
+    const n = sup ? p.multi + 1 : p.multi;
     for (let i = 0; i < n; i++) {
       const spread = (i - (n - 1) / 2) * 0.09;
       const ang = Math.atan2(c.y - my, c.x - mx) + spread;
-      const speed = wpn.spd;
       s.balls.push({
-        x: mx, y: my, rot: 0, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
-        dmg: p.dmg * wpn.dmg * (sup ? 5 : 1), pierce: p.pierce + (sup ? 5 : 0), hits: [], sup,
-        r: sup ? wpn.pr * 1.7 : wpn.pr, kind: p.weapon,
+        x: mx, y: my, rot: 0, vx: Math.cos(ang) * WEAPON.spd, vy: Math.sin(ang) * WEAPON.spd,
+        dmg: p.dmg * WEAPON.dmg * (sup ? 4 : 1), pierce: p.pierce + (sup ? 4 : 0), hits: [], sup,
+        r: sup ? WEAPON.pr * 1.7 : WEAPON.pr,
       });
     }
-    s.fx.push({ x: mx + 6, y: my, r: sup ? 30 : 14, t: .11, c: sup ? "#FFD54A" : "#FFF3C4" });
-    sup ? SFX.pop() : (p.weapon === "water" ? SFX.pop() : SFX.shot());
+    s.fx.push({ x: mx + 6, y: my, r: sup ? 26 : 14, t: .11, c: sup ? "#C69BFF" : "#DDF2FF" });
+    SFX.pop();
   };
 
   const damage = (s, e, dmg, sup) => {
@@ -598,8 +531,8 @@ export default function LeoRun() {
 
   const syncHud = s => setHud(h => {
     const sup = Math.max(0, s.supT);
-    if (h.hp === s.p.hp && h.maxHp === s.p.maxHp && h.coins === s.coins && h.enc === s.enc && h.weapon === s.p.weapon && Math.abs(h.sup - sup) < .05) return h;
-    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, sup, weapon: s.p.weapon };
+    if (h.hp === s.p.hp && h.maxHp === s.p.maxHp && h.coins === s.coins && h.enc === s.enc && Math.abs(h.sup - sup) < .05) return h;
+    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, sup };
   });
 
   /* ---- draw ---- */
@@ -667,90 +600,58 @@ export default function LeoRun() {
   };
 
   const drawLeo = (ctx, s, T) => {
-    const wpn = WEAPONS[s.p.weapon];
     const superOn = s.superT > 0;
-    // La transformación se ve en combate (idle/atacar/golpe); no pisa correr ni la victoria.
-    const superVis = superOn && (s.state === "idle" || s.state === "atk" || s.state === "hurt");
-    const bob = s.state === "run" ? Math.abs(Math.sin(s.anim * Math.PI)) * -3 : 0;
-
-    const healthBar = h => {
-      const pct = Math.max(0, s.p.hp / s.p.maxHp);
-      const bw = 66, bx = LEO_X - bw / 2, by = GY - h - 16;
-      roundRect(ctx, bx - 2, by - 2, bw + 4, 9, 4); ctx.fillStyle = C.ink; ctx.fill();
-      ctx.fillStyle = pct > .5 ? "#6BE04A" : pct > .25 ? "#FFD54A" : "#FF5C5C";
-      ctx.fillRect(bx, by, bw * pct, 5);
-    };
-
-    if (superVis) {
-      // Secuencia ping-pong: idle 1-4 (transformación) + attack 1-3 y vuelta, en bucle.
-      const key = SUPER_SEQ[Math.min(SUPER_SEQ.length - 1, Math.floor(s.superAnimT / SUPER_FRAME_T))];
-      const im = IMG.current[key]; if (!im) return;
-      const sc = SC_BODY;
-      ctx.save();
-      // sombra en los pies
-      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, LEO_H * .34, 6, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
-      // resplandor azul detrás (centrado en el torso)
-      const gy = GY - LEO_H * .55, pulse = 1 + Math.sin(T * 20) * .06;
-      const gr = ctx.createRadialGradient(LEO_X, gy, 8, LEO_X, gy, LEO_H * .95 * pulse);
-      gr.addColorStop(0, "rgba(150,220,255,.4)");
-      gr.addColorStop(.5, "rgba(90,160,255,.22)");
-      gr.addColorStop(1, "rgba(80,150,255,0)");
-      ctx.fillStyle = gr;
-      ctx.beginPath(); ctx.ellipse(LEO_X, gy, LEO_H * .6 * pulse, LEO_H * .95 * pulse, 0, 0, Math.PI * 2); ctx.fill();
-      // sprite anclado por los pies (SUP_FX,SUP_FY) a (LEO_X,GY)
-      ctx.drawImage(im, LEO_X - SUP_FX * sc, GY - SUP_FY * sc, SUP_W * sc, SUP_H * sc);
-      // rayos dinámicos ocasionales
-      if (Math.random() < .4) {
-        ctx.strokeStyle = "rgba(190,240,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
-        const sx = LEO_X + (Math.random() - .5) * 90, sy = GY - LEO_H * (.2 + Math.random() * 1.1);
-        ctx.beginPath(); ctx.moveTo(sx, sy);
-        for (let i = 0; i < 3; i++) ctx.lineTo(sx + (Math.random() - .5) * 34, sy + (i + 1) * 12 * (Math.random() < .5 ? 1 : -1));
-        ctx.stroke();
-      }
-      ctx.restore();
-      healthBar(LEO_H);
-      return;
-    }
-
-    if (s.state === "win") {
-      // Victoria: mismo tamaño de cuerpo (SC_BODY), anclada por los pies.
-      const im = IMG.current["win" + Math.min(WIN_FRAMES - 1, Math.floor(s.winT / WIN_FRAME_T))]; if (!im) return;
-      ctx.save();
-      ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, WIN_W * SC_BODY * .34, 6, 0, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
-      ctx.drawImage(im, LEO_X - WIN_FX * SC_BODY, GY - WIN_FY * SC_BODY, WIN_W * SC_BODY, WIN_H * SC_BODY);
-      ctx.restore();
-      healthBar(LEO_H);
-      return;
-    }
-
-    let key = wpn.idle;
-    if (s.state === "run") key = "crun" + (Math.floor(s.anim * RUN_SPD) % CRUN_FRAMES);
-    else if (s.state === "atk") key = wpn.atk;
-    else if (s.state === "hurt") key = "hurt";
-    else if (s.state === "ko") key = "ko";
+    const pre = superOn ? "s_" : "";
+    // Elegir frame segun estado (spec animaciones.json)
+    let key;
+    if (s.state === "win") key = s.superWin ? "s_vic" : "v" + Math.min(VIC_FRAMES - 1, Math.floor(s.winT * VIC_FPS));
+    else if (s.state === "run") key = pre + RUN_SEQ[Math.floor(T * RUN_FPS) % RUN_SEQ.length];
+    else if (s.state === "atk") key = pre + "fire";
+    else if (s.state === "hurt" || s.state === "ko") key = pre + "hurt";
+    else key = pre + "aim";   // apuntar (reposo de combate)
     const im = IMG.current[key]; if (!im) return;
-    const h = LEO_H, w = im.width * h / im.height;
+
+    // Todos los frames 420x440: se dibujan igual, con la linea de suelo (y=418) sobre GY.
+    const w = FRAME_W * DRAW_SC, h = FRAME_H * DRAW_SC;
+    const dx = LEO_X - w / 2, dy = GY - GROUND * DRAW_SC;
+
     ctx.save();
-    ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, w * .38, 6, 0, 0, Math.PI * 2);
+    ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, 32, 6, 0, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fill();
-    if (s.hurtT > 0) ctx.filter = "brightness(2.4) saturate(.4)";
-    ctx.drawImage(im, LEO_X - w / 2, GY - h + bob, w, h);
+    if (superOn) {   // aura morada del super detras
+      const gy = GY - LEO_H * .5, pulse = 1 + Math.sin(T * 20) * .06;
+      const gr = ctx.createRadialGradient(LEO_X, gy, 8, LEO_X, gy, LEO_H * .95 * pulse);
+      gr.addColorStop(0, "rgba(196,155,255,.42)"); gr.addColorStop(.5, "rgba(150,110,255,.2)"); gr.addColorStop(1, "rgba(120,90,255,0)");
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(LEO_X, gy, LEO_H * .58 * pulse, LEO_H * .92 * pulse, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    if (s.hurtT > 0) ctx.filter = "brightness(2.2) saturate(.5)";
+    ctx.drawImage(im, dx, dy, w, h);
+    if (superOn && Math.random() < .35) {   // rayos del super
+      ctx.strokeStyle = "rgba(210,170,255,.95)"; ctx.lineWidth = 2.5; ctx.lineJoin = "round";
+      const sx = LEO_X + (Math.random() - .5) * 82, sy = GY - LEO_H * (.2 + Math.random() * .9);
+      ctx.beginPath(); ctx.moveTo(sx, sy);
+      for (let i = 0; i < 3; i++) ctx.lineTo(sx + (Math.random() - .5) * 30, sy + (i + 1) * 11 * (Math.random() < .5 ? 1 : -1));
+      ctx.stroke();
+    }
     ctx.restore();
-    healthBar(h);
+
+    // barra de vida sobre la cabeza
+    const pct = Math.max(0, s.p.hp / s.p.maxHp);
+    const bw = 66, bx = LEO_X - bw / 2, by = GY - LEO_H - 16;
+    roundRect(ctx, bx - 2, by - 2, bw + 4, 9, 4); ctx.fillStyle = C.ink; ctx.fill();
+    ctx.fillStyle = pct > .5 ? "#6BE04A" : pct > .25 ? "#FFD54A" : "#FF5C5C";
+    ctx.fillRect(bx, by, bw * pct, 5);
   };
 
   const drawBall = (ctx, b) => {
-    const spr = WEAPONS[b.kind].proj ? IMG.current[WEAPONS[b.kind].proj] : null;
+    const spr = IMG.current[WEAPON.proj];
     ctx.save(); ctx.translate(b.x, b.y);
     if (b.sup) {
       ctx.beginPath(); ctx.arc(0, 0, b.r + 12, 0, Math.PI * 2);
-      ctx.fillStyle = "rgba(255,200,60,.45)"; ctx.fill();
+      ctx.fillStyle = "rgba(180,140,255,.45)"; ctx.fill();
     }
     if (spr) {
       const h = b.r * 2.1, w = spr.width * h / spr.height;
-      if (b.kind === "basket") ctx.rotate(b.rot);
       ctx.drawImage(spr, -w / 2, -h / 2, w, h);
     } else {
       ctx.beginPath(); ctx.arc(0, 0, b.r, 0, Math.PI * 2); inked(ctx, "#C9CDD4", 2.5);
@@ -791,24 +692,21 @@ export default function LeoRun() {
   const superShot = () => {
     const s = g.current;
     if (phaseRef.current !== "fight" || s.supT > 0 || s.superT > 0 || !s.enemies.length) return;
-    s.supT = s.p.superCd; s.superT = SUPER_DUR; s.superAnimT = 0; s.superFired = false; SFX.charge();
+    s.supT = s.p.superCd; s.superT = SUPER_DUR; s.flash = .5; shake(10); SFX.charge(); SFX.blast();
   };
   const takeUp = u => {
     const s = g.current;
-    if (u.w) { s.p.owned[u.w] = true; s.p.weapon = u.w; }
-    else u.ap(s.p);
+    u.ap(s.p);
     setTaken(t => [...t, u.icon]); SFX.coin(); syncHud(s); setPhaseBoth("run");
   };
-  const swapWeapon = k => { const s = g.current; if (s.p.owned[k]) { s.p.weapon = k; syncHud(s); } };
   const restart = useCallback(() => {
     const clouds = g.current.clouds;
     g.current = freshGame(); g.current.clouds = clouds;
-    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0, weapon: "basket" });
+    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0 });
     setMenu(null); setPhaseBoth("run");
   }, []);
 
   const supPct = hud.sup > 0 ? 1 - hud.sup / g.current.p.superCd : 1;
-  const owned = g.current.p.owned;
   const inMenus = phase === "title";
 
   return (
@@ -917,22 +815,11 @@ export default function LeoRun() {
 
       {!inMenus && (
       <div className="w-full max-w-3xl flex items-center gap-2">
-        <div className="flex gap-1.5">
-          {Object.values(WEAPONS).map(w => (
-            <button key={w.key} onClick={() => swapWeapon(w.key)} disabled={!owned[w.key]}
-              title={w.name}
-              className="px-3 py-3 text-lg"
-              style={{
-                borderRadius: 12, border: "3px solid " + (hud.weapon === w.key ? "#FFD54A" : C.line),
-                background: hud.weapon === w.key ? C.card : "transparent", opacity: owned[w.key] ? 1 : .28,
-              }}>{owned[w.key] ? w.icon : "🔒"}</button>
-          ))}
-        </div>
         <button onClick={superShot} disabled={hud.sup > 0}
           className="flex-1 py-3 font-black text-base relative overflow-hidden"
-          style={{ background: hud.sup > 0 ? "#3E5646" : "#FF8A3D", color: hud.sup > 0 ? "#7E9488" : C.ink, borderRadius: 14, boxShadow: hud.sup > 0 ? "none" : "0 4px 0 rgba(0,0,0,.35)" }}>
-          <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: (supPct * 100) + "%", background: "rgba(255,213,74,.35)" }} />
-          <span style={{ position: "relative" }}>⚡ MODO SÚPER {hud.sup > 0 ? Math.ceil(hud.sup) + "s" : "x5"}</span>
+          style={{ background: hud.sup > 0 ? "#3E5646" : "#8B5CF6", color: hud.sup > 0 ? "#7E9488" : "#fff", borderRadius: 14, boxShadow: hud.sup > 0 ? "none" : "0 4px 0 rgba(0,0,0,.35)" }}>
+          <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: (supPct * 100) + "%", background: "rgba(196,155,255,.4)" }} />
+          <span style={{ position: "relative" }}>⚡ MODO SÚPER {hud.sup > 0 ? Math.ceil(hud.sup) + "s" : ""}</span>
         </button>
         <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-4 py-3 font-black text-sm"
           style={{ borderRadius: 14, border: "3px solid " + C.line, color: "#9BB3A6" }}>{muted ? "🔇" : "🔊"}</button>
