@@ -159,16 +159,30 @@ export default function LeoRun() {
   const cv = useRef(null);
   const g = useRef(freshGame());
   const IMG = useRef({});
-  const phaseRef = useRef("run");
+  const phaseRef = useRef("title");
   const [ready, setReady] = useState(false);
-  const [phase, setPhase] = useState("run");
+  const [phase, setPhase] = useState("title");
   const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0, weapon: "basket" });
   const [choices, setChoices] = useState([]);
   const [taken, setTaken] = useState([]);
   const [muted, setMuted] = useState(false);
   const [banner, setBanner] = useState(null);
+  const [menu, setMenu] = useState(null);              // null | "settings" | "trophy"
+  const [best, setBest] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("leoBest") || "{}"); } catch { return {}; }
+  });
 
   const setPhaseBoth = p => { phaseRef.current = p; setPhase(p); };
+
+  // Guarda las mejores marcas al caer.
+  useEffect(() => {
+    if (phase !== "gameover") return;
+    setBest(b => {
+      const nb = { enc: Math.max(b.enc || 0, hud.enc), coins: Math.max(b.coins || 0, hud.coins) };
+      try { localStorage.setItem("leoBest", JSON.stringify(nb)); } catch { /* ignore */ }
+      return nb;
+    });
+  }, [phase]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shake = m => { const s = g.current; s.shake = Math.max(s.shake, m); s.shakeT = 0.3; };
 
   useEffect(() => {
@@ -594,7 +608,8 @@ export default function LeoRun() {
   const restart = useCallback(() => {
     const clouds = g.current.clouds;
     g.current = freshGame(); g.current.clouds = clouds;
-    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0, weapon: "basket" }); setPhaseBoth("run");
+    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, sup: 0, weapon: "basket" });
+    setMenu(null); setPhaseBoth("run");
   }, []);
 
   const supPct = hud.sup > 0 ? 1 - hud.sup / g.current.p.superCd : 1;
@@ -606,9 +621,11 @@ export default function LeoRun() {
       <style>{`
         @keyframes popIn{0%{transform:scale(.7) translateY(14px);opacity:0}70%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
         @keyframes bannerIn{0%{transform:translateY(-24px);opacity:0}18%,78%{transform:translateY(0);opacity:1}100%{transform:translateY(-14px);opacity:0}}
+        @keyframes tapPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,213,74,0)}50%{box-shadow:0 0 26px 6px rgba(255,213,74,.4)}}
         @media (prefers-reduced-motion: reduce){*{animation:none!important}}
       `}</style>
 
+      {phase !== "title" && (
       <div className="w-full max-w-3xl flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-lg sm:text-2xl font-black"><span style={{ color: "#FFD54A" }}>LEO</span> vs ZOMBIS</h1>
         <div className="flex items-center gap-2 text-sm font-black">
@@ -623,6 +640,7 @@ export default function LeoRun() {
           <span style={{ color: "#7DD3FC" }}>⚔️ {hud.enc}</span>
         </div>
       </div>
+      )}
 
       <div className="relative w-full max-w-3xl">
         <canvas ref={cv} width={W} height={H} onClick={superShot}
@@ -661,8 +679,46 @@ export default function LeoRun() {
             <button onClick={restart} className="mt-2 px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Otra vez</button>
           </div>
         )}
+
+        {phase === "title" && (
+          <div className="absolute inset-0 cursor-pointer select-none" onClick={restart}
+            style={{ borderRadius: 18, overflow: "hidden", background: "#0c130d" }}>
+            <img src="/title.png" alt="Leo & Alex Zombie Run" draggable="false"
+              className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
+            {/* pista de pulso sobre el botón "TAP TO START" (dibujado en la imagen) */}
+            <div className="absolute pointer-events-none"
+              style={{ left: "50%", bottom: "4%", transform: "translateX(-50%)", width: "34%", height: "11%", borderRadius: 14, animation: "tapPulse 1.3s ease-in-out infinite" }} />
+            {/* engranaje (abajo izq.) */}
+            <button aria-label="Ajustes" onClick={(e) => { e.stopPropagation(); setMenu("settings"); }}
+              className="absolute cursor-pointer" style={{ left: "1.5%", bottom: "3%", width: "9%", height: "13%", background: "transparent", border: "none" }} />
+            {/* trofeo (abajo der.) */}
+            <button aria-label="Logros" onClick={(e) => { e.stopPropagation(); setMenu("trophy"); }}
+              className="absolute cursor-pointer" style={{ right: "1.5%", bottom: "3%", width: "9%", height: "13%", background: "transparent", border: "none" }} />
+          </div>
+        )}
+
+        {menu === "settings" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4" style={{ background: "rgba(12,19,13,.94)", borderRadius: 18 }}>
+            <p className="font-black text-xl" style={{ color: "#FFD54A" }}>⚙️ Ajustes</p>
+            <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-5 py-2.5 font-black"
+              style={{ background: C.card, border: "3px solid " + C.line, borderRadius: 12, minWidth: 200 }}>
+              {muted ? "🔇 Sonido: OFF" : "🔊 Sonido: ON"}
+            </button>
+            <button onClick={() => setMenu(null)} className="px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
+          </div>
+        )}
+
+        {menu === "trophy" && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style={{ background: "rgba(12,19,13,.94)", borderRadius: 18 }}>
+            <p className="font-black text-xl" style={{ color: "#FFD54A" }}>🏆 Mejores marcas</p>
+            <p className="text-base">⚔️ Combates: <b style={{ color: "#7DD3FC" }}>{best.enc || 0}</b></p>
+            <p className="text-base">💰 Monedas: <b style={{ color: "#FFD54A" }}>{best.coins || 0}</b></p>
+            <button onClick={() => setMenu(null)} className="mt-2 px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
+          </div>
+        )}
       </div>
 
+      {phase !== "title" && (
       <div className="w-full max-w-3xl flex items-center gap-2">
         <div className="flex gap-1.5">
           {Object.values(WEAPONS).map(w => (
@@ -684,15 +740,18 @@ export default function LeoRun() {
         <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-4 py-3 font-black text-sm"
           style={{ borderRadius: 14, border: "3px solid " + C.line, color: "#9BB3A6" }}>{muted ? "🔇" : "🔊"}</button>
       </div>
+      )}
 
       {taken.length > 0 && (
         <div className="w-full max-w-3xl text-base">
           <span className="text-xs mr-2" style={{ color: "#6F8A7C" }}>Mejoras:</span>{taken.join(" ")}
         </div>
       )}
+      {phase !== "title" && (
       <p className="max-w-3xl text-xs" style={{ color: "#6F8A7C" }}>
         Leo corre y dispara solo · toca la pantalla para el MODO SÚPER (daño x5) · las armas nuevas salen como mejora
       </p>
+      )}
     </div>
   );
 }
