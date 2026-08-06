@@ -153,6 +153,167 @@ function roundRect(c, x, y, w, h, r) {
 }
 const inked = (c, f, lw = 3) => { c.fillStyle = f; c.fill(); c.strokeStyle = C.ink; c.lineWidth = lw; c.lineJoin = "round"; c.stroke(); };
 
+/* ===== HOME (maqueta visual) ===== */
+function HomeScreen({ onPlay, onSettings, onTrophy, onBack, best }) {
+  const P = {
+    bg1: "#0e2138", bg2: "#0a1728", panel: "#143157", panelIn: "#0e2544", line: "#2c5384",
+    banner: "#d54038", bannerLn: "#8f221c", gold: "#FFD54A", txt: "#dce8f7", sub: "#8fb0d4",
+    green: "#3fae3a", greenLn: "#2b7a27", blue: "#2f6fed", blueLn: "#1c47a8", ink: "#091626", slot: "#102a4c",
+  };
+  const num = n => n.toLocaleString("es-ES");
+  const Banner = ({ children, w = "78%" }) => (
+    <div style={{ width: w, margin: "0 auto -12px", position: "relative", zIndex: 2, background: P.banner, border: `2px solid ${P.bannerLn}`, borderRadius: 9, textAlign: "center", color: "#fff", fontWeight: 900, letterSpacing: .5, fontSize: 14, padding: "5px 0", boxShadow: "0 3px 0 rgba(0,0,0,.35)" }}>{children}</div>
+  );
+  const Panel = ({ title, children }) => (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <Banner>{title}</Banner>
+      <div style={{ flex: 1, background: P.panel, border: `2px solid ${P.line}`, borderRadius: 14, padding: "20px 10px 12px" }}>{children}</div>
+    </div>
+  );
+  const Chip = ({ icon, children, plus }) => (
+    <div style={{ display: "flex", alignItems: "center", gap: 6, background: P.ink, border: `2px solid ${P.line}`, borderRadius: 20, padding: "3px 3px 3px 9px", fontWeight: 900, fontSize: 13 }}>
+      <span>{icon}</span><span>{children}</span>
+      {plus && <span style={{ background: P.green, border: `2px solid ${P.greenLn}`, borderRadius: 13, width: 20, height: 20, display: "grid", placeItems: "center", color: "#fff", fontSize: 15, lineHeight: 1 }}>+</span>}
+    </div>
+  );
+  const Bar = ({ v, max, col = P.blue }) => (
+    <div style={{ height: 8, background: "#07182c", borderRadius: 6, overflow: "hidden", border: "1px solid #0a1f3a" }}>
+      <div style={{ width: `${Math.min(100, v / max * 100)}%`, height: "100%", background: col }} />
+    </div>
+  );
+  const IconBtn = ({ children, onClick }) => (
+    <button onClick={onClick} style={{ width: 34, height: 34, background: P.ink, border: `2px solid ${P.line}`, borderRadius: 9, display: "grid", placeItems: "center", fontSize: 16 }}>{children}</button>
+  );
+  const UpBtn = ({ children }) => (
+    <span style={{ background: P.green, border: `2px solid ${P.greenLn}`, borderRadius: 9, color: "#fff", fontWeight: 900, fontSize: 12, padding: "5px 8px", display: "inline-flex", alignItems: "center", gap: 4, boxShadow: "0 2px 0 rgba(0,0,0,.3)" }}>{children} <span style={{ fontSize: 11 }}>⬆️</span></span>
+  );
+  const Slot = ({ i, lv }) => (
+    <div style={{ position: "relative", background: P.slot, border: `2px solid ${P.line}`, borderRadius: 10, aspectRatio: "1", display: "grid", placeItems: "center", fontSize: 22 }}>
+      {i}
+      <span style={{ position: "absolute", left: 3, bottom: 3, background: P.ink, border: `1px solid ${P.line}`, borderRadius: 6, fontSize: 9, fontWeight: 900, padding: "0 4px", color: P.gold }}>Lv.{lv}</span>
+    </div>
+  );
+
+  const gear = [{ i: "🏀", lv: 3 }, { i: "🧢", lv: 2 }, { i: "⌚", lv: 1 }, { i: "👕", lv: 2 }, { i: "🩳", lv: 1 }, { i: "👟", lv: 2 }];
+  const stats = [{ i: "❤️", n: "HP", v: "1,250", d: "+150" }, { i: "⚔️", n: "ATTACK", v: "320", d: "+35" }, { i: "🛡️", n: "DEFENSE", v: "180", d: "+20" }, { i: "💨", n: "SPEED", v: "450", d: "+30" }];
+  const skills = [{ i: "🏃", n: "DASH", lv: 3, v: 15, m: 20, c: 800 }, { i: "🎯", n: "POWER SHOT", lv: 2, v: 5, m: 10, c: 500 }, { i: "🛡️", n: "DEFENSE BOOST", lv: 2, v: 3, m: 10, c: 500 }, { i: "⚡", n: "SUPER RUN", lv: 1, v: 2, m: 5, c: 300 }];
+  const shop = [{ n: "COIN PACK", i: "🪙", a: "5,000", p: "1,99 €" }, { n: "GEM PACK", i: "💎", a: "500", p: "3,99 €" }, { n: "STARTER", i: "🎁", a: "", p: "6,99 €" }, { n: "BASKETBALL", i: "🏀", a: "🪙 1,000", p: "" }, { n: "WATER GUN", i: "🔫", a: "🪙 2,500", p: "" }, { n: "SNEAKERS", i: "👟", a: "🪙 1,500", p: "" }];
+  const nav = [{ i: "🏠", n: "HOME", on: true }, { i: "🏀", n: "PLAY" }, { i: "🎟️", n: "BATTLE PASS" }, { i: "📋", n: "MISSIONS", bang: true }, { i: "👥", n: "CLUB", bang: true }];
+
+  return (
+    <div style={{ width: "100%", maxWidth: "48rem", background: `linear-gradient(${P.bg1},${P.bg2})`, border: `3px solid ${P.line}`, borderRadius: 18, overflow: "hidden", color: P.txt, fontWeight: 700 }}>
+      {/* TOP BAR */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", background: "rgba(0,0,0,.22)", borderBottom: `2px solid ${P.line}`, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 34, height: 34, background: P.blue, border: "2px solid #7aa5ff", borderRadius: 9, display: "grid", placeItems: "center", fontWeight: 900, color: "#fff" }}>12</div>
+          <div style={{ minWidth: 108 }}>
+            <div style={{ fontSize: 9, color: P.sub, fontWeight: 900, letterSpacing: .5 }}>PLAYER LEVEL</div>
+            <Bar v={650} max={1200} />
+            <div style={{ fontSize: 9, color: P.sub, textAlign: "right" }}>650 / 1200</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <Chip icon="🪙" plus>{num(12350)}</Chip>
+          <Chip icon="💎" plus>{num(850)}</Chip>
+          <Chip icon="⚡" plus>30/30</Chip>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <IconBtn onClick={onTrophy}>🏆</IconBtn>
+          <IconBtn onClick={onSettings}>⚙️</IconBtn>
+        </div>
+      </div>
+
+      {/* PANELS */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12, padding: 12 }}>
+        {/* PLAYER */}
+        <Panel title="PLAYER">
+          {[{ n: "LEO", sel: true }, { n: "ALEX", sel: false }].map(c => (
+            <div key={c.n} style={{ display: "flex", alignItems: "center", gap: 10, background: c.sel ? "#164a86" : P.panelIn, border: `2px solid ${c.sel ? P.gold : P.line}`, borderRadius: 12, padding: 8, marginBottom: 8 }}>
+              <div style={{ width: 54, height: 54, borderRadius: 10, background: P.ink, border: `2px solid ${P.line}`, overflow: "hidden", display: "grid", placeItems: "center", filter: c.sel ? "none" : "grayscale(1) brightness(.6)" }}>
+                <img src="/sprites/characters/leo/common/win_10.png" alt={c.n} style={{ width: "150%", marginTop: 8 }} />
+              </div>
+              <div style={{ flex: 1, fontWeight: 900 }}>{c.n}</div>
+              {c.sel ? <span style={{ color: "#5bd24e", fontSize: 22 }}>✓</span> : <span style={{ fontSize: 18 }}>🔒</span>}
+            </div>
+          ))}
+          <div style={{ textAlign: "center", background: P.blue, border: `2px solid ${P.blueLn}`, borderRadius: 10, color: "#fff", fontWeight: 900, padding: "7px 0", marginTop: 4 }}>SELECTED</div>
+        </Panel>
+
+        {/* GEAR */}
+        <Panel title="GEAR">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr 1fr", gap: 6, alignItems: "center" }}>
+            <div style={{ display: "grid", gap: 6 }}>{gear.slice(0, 3).map((s, i) => <Slot key={i} {...s} />)}</div>
+            <div style={{ background: P.ink, border: `2px solid ${P.line}`, borderRadius: 12, display: "grid", placeItems: "center", height: "100%", minHeight: 130, overflow: "hidden" }}>
+              <img src="/sprites/characters/leo/common/win_0.png" alt="Leo" style={{ height: 130 }} />
+            </div>
+            <div style={{ display: "grid", gap: 6 }}>{gear.slice(3).map((s, i) => <Slot key={i} {...s} />)}</div>
+          </div>
+          <div style={{ display: "grid", gap: 5, margin: "10px 0", background: P.panelIn, border: `2px solid ${P.line}`, borderRadius: 10, padding: 8 }}>
+            {stats.map(s => (
+              <div key={s.n} style={{ display: "flex", alignItems: "baseline", gap: 6, fontSize: 12 }}>
+                <span>{s.i}</span><b style={{ color: P.sub, flex: 1 }}>{s.n}</b>
+                <b>{s.v}</b><span style={{ color: "#5bd24e", fontSize: 11 }}>{s.d}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ textAlign: "center", background: P.green, border: `2px solid ${P.greenLn}`, borderRadius: 10, color: "#fff", fontWeight: 900, padding: "8px 0", boxShadow: "0 3px 0 rgba(0,0,0,.3)" }}>UPGRADE GEAR</div>
+        </Panel>
+
+        {/* SKILLS */}
+        <Panel title="SKILLS">
+          {skills.map(s => (
+            <div key={s.n} style={{ display: "flex", alignItems: "center", gap: 8, background: P.panelIn, border: `2px solid ${P.line}`, borderRadius: 10, padding: 7, marginBottom: 7 }}>
+              <div style={{ width: 34, height: 34, background: P.slot, border: `2px solid ${P.line}`, borderRadius: 8, display: "grid", placeItems: "center", fontSize: 18 }}>{s.i}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 900, fontSize: 12 }}>{s.n}</div>
+                <div style={{ fontSize: 10, color: P.sub }}>Level {s.lv}</div>
+                <Bar v={s.v} max={s.m} />
+              </div>
+              <UpBtn>🪙{s.c}</UpBtn>
+            </div>
+          ))}
+          <div style={{ textAlign: "center", background: P.blue, border: `2px solid ${P.blueLn}`, borderRadius: 10, color: "#fff", fontWeight: 900, padding: "8px 0" }}>SKILL TREE</div>
+        </Panel>
+      </div>
+
+      {/* SHOP + PLAY */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12, padding: "0 12px 12px" }}>
+        <div>
+          <Banner w="30%">SHOP</Banner>
+          <div style={{ background: P.panel, border: `2px solid ${P.line}`, borderRadius: 14, padding: "20px 10px 10px", display: "flex", gap: 8, overflowX: "auto" }}>
+            {shop.map(s => (
+              <div key={s.n} style={{ flex: "0 0 auto", width: 84, background: P.panelIn, border: `2px solid ${P.line}`, borderRadius: 10, padding: 6, textAlign: "center" }}>
+                <div style={{ fontSize: 9, color: P.sub, fontWeight: 900, height: 22 }}>{s.n}</div>
+                <div style={{ fontSize: 30, lineHeight: 1 }}>{s.i}</div>
+                {s.a && <div style={{ fontSize: 11, fontWeight: 900, color: P.gold, marginTop: 2 }}>{s.a}</div>}
+                <div style={{ marginTop: 4, background: P.green, border: `2px solid ${P.greenLn}`, borderRadius: 8, color: "#fff", fontWeight: 900, fontSize: 11, padding: "3px 0" }}>{s.p || "Comprar"}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Banner w="30%">PLAY</Banner>
+          <div style={{ background: "linear-gradient(#1c5fb0,#0f3f83)", border: `2px solid ${P.line}`, borderRadius: 14, padding: 14, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, height: "calc(100% - 0px)", minHeight: 120 }}>
+            <div style={{ fontSize: 12, color: "#cfe4ff", fontWeight: 900 }}>Modo Zombie Run</div>
+            <button onClick={onPlay} style={{ background: P.gold, border: "3px solid #b8933a", borderRadius: 14, color: "#1c1405", fontWeight: 900, fontSize: 26, letterSpacing: 1, padding: "10px 46px", boxShadow: "0 5px 0 rgba(0,0,0,.35)" }}>▶ PLAY</button>
+          </div>
+        </div>
+      </div>
+
+      {/* BOTTOM NAV */}
+      <div style={{ display: "flex", background: "rgba(0,0,0,.28)", borderTop: `2px solid ${P.line}` }}>
+        {nav.map(t => (
+          <button key={t.n} onClick={t.n === "PLAY" ? onPlay : undefined}
+            style={{ flex: 1, padding: "8px 2px", display: "flex", flexDirection: "column", alignItems: "center", gap: 2, background: t.on ? "#164a86" : "transparent", color: t.on ? "#fff" : P.sub, fontWeight: 900, fontSize: 10, position: "relative" }}>
+            <span style={{ fontSize: 18 }}>{t.i}</span>{t.n}
+            {t.bang && <span style={{ position: "absolute", top: 4, right: "50%", marginRight: -22, background: "#e23b2e", borderRadius: 8, color: "#fff", fontSize: 10, width: 15, height: 15, display: "grid", placeItems: "center" }}>!</span>}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ===== COMPONENT ===== */
 export default function LeoRun() {
   const cv = useRef(null);
@@ -613,6 +774,7 @@ export default function LeoRun() {
 
   const supPct = hud.sup > 0 ? 1 - hud.sup / g.current.p.superCd : 1;
   const owned = g.current.p.owned;
+  const inMenus = phase === "title" || phase === "home";
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center gap-3 p-3 sm:p-5"
@@ -624,7 +786,7 @@ export default function LeoRun() {
         @media (prefers-reduced-motion: reduce){*{animation:none!important}}
       `}</style>
 
-      {phase !== "title" && (
+      {!inMenus && (
       <div className="w-full max-w-3xl flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-lg sm:text-2xl font-black"><span style={{ color: "#FFD54A" }}>LEO</span> vs ZOMBIS</h1>
         <div className="flex items-center gap-2 text-sm font-black">
@@ -641,7 +803,7 @@ export default function LeoRun() {
       </div>
       )}
 
-      <div className="relative w-full max-w-3xl">
+      <div className="relative w-full max-w-3xl" style={{ display: phase === "home" ? "none" : undefined }}>
         <canvas ref={cv} width={W} height={H} onClick={superShot}
           className="w-full h-auto cursor-pointer touch-none"
           style={{ borderRadius: 18, border: "4px solid " + C.line, display: "block" }} />
@@ -680,7 +842,7 @@ export default function LeoRun() {
         )}
 
         {phase === "title" && (
-          <div className="absolute inset-0 cursor-pointer select-none" onClick={restart}
+          <div className="absolute inset-0 cursor-pointer select-none" onClick={() => { setMenu(null); setPhaseBoth("home"); }}
             style={{ borderRadius: 18, overflow: "hidden", background: "#0c130d" }}>
             <img src="/title.png" alt="Leo & Alex Zombie Run" draggable="false"
               className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
@@ -696,28 +858,33 @@ export default function LeoRun() {
           </div>
         )}
 
-        {menu === "settings" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-4" style={{ background: "rgba(12,19,13,.94)", borderRadius: 18 }}>
-            <p className="font-black text-xl" style={{ color: "#FFD54A" }}>⚙️ Ajustes</p>
-            <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-5 py-2.5 font-black"
-              style={{ background: C.card, border: "3px solid " + C.line, borderRadius: 12, minWidth: 200 }}>
-              {muted ? "🔇 Sonido: OFF" : "🔊 Sonido: ON"}
-            </button>
-            <button onClick={() => setMenu(null)} className="px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
-          </div>
-        )}
-
-        {menu === "trophy" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4" style={{ background: "rgba(12,19,13,.94)", borderRadius: 18 }}>
-            <p className="font-black text-xl" style={{ color: "#FFD54A" }}>🏆 Mejores marcas</p>
-            <p className="text-base">⚔️ Combates: <b style={{ color: "#7DD3FC" }}>{best.enc || 0}</b></p>
-            <p className="text-base">💰 Monedas: <b style={{ color: "#FFD54A" }}>{best.coins || 0}</b></p>
-            <button onClick={() => setMenu(null)} className="mt-2 px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
-          </div>
-        )}
       </div>
 
-      {phase !== "title" && (
+      {phase === "home" && (
+        <HomeScreen onPlay={restart} onSettings={() => setMenu("settings")} onTrophy={() => setMenu("trophy")} onBack={() => setPhaseBoth("title")} best={best} />
+      )}
+
+      {menu === "settings" && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(8,14,22,.93)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 16 }}>
+          <p className="font-black text-xl" style={{ color: "#FFD54A" }}>⚙️ Ajustes</p>
+          <button onClick={() => { audio.on = muted; setMuted(!muted); }} className="px-5 py-2.5 font-black"
+            style={{ background: C.card, border: "3px solid " + C.line, borderRadius: 12, minWidth: 220 }}>
+            {muted ? "🔇 Sonido: OFF" : "🔊 Sonido: ON"}
+          </button>
+          <button onClick={() => setMenu(null)} className="px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
+        </div>
+      )}
+
+      {menu === "trophy" && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(8,14,22,.93)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: 16 }}>
+          <p className="font-black text-xl" style={{ color: "#FFD54A" }}>🏆 Mejores marcas</p>
+          <p className="text-base">⚔️ Combates: <b style={{ color: "#7DD3FC" }}>{best.enc || 0}</b></p>
+          <p className="text-base">💰 Monedas: <b style={{ color: "#FFD54A" }}>{best.coins || 0}</b></p>
+          <button onClick={() => setMenu(null)} className="mt-2 px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Volver</button>
+        </div>
+      )}
+
+      {!inMenus && (
       <div className="w-full max-w-3xl flex items-center gap-2">
         <div className="flex gap-1.5">
           {Object.values(WEAPONS).map(w => (
@@ -746,7 +913,7 @@ export default function LeoRun() {
           <span className="text-xs mr-2" style={{ color: "#6F8A7C" }}>Mejoras:</span>{taken.join(" ")}
         </div>
       )}
-      {phase !== "title" && (
+      {!inMenus && (
       <p className="max-w-3xl text-xs" style={{ color: "#6F8A7C" }}>
         Leo corre y dispara solo · toca la pantalla para el MODO SÚPER (daño x5) · las armas nuevas salen como mejora
       </p>
