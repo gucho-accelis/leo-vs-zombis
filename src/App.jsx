@@ -133,6 +133,32 @@ const freshGame = () => ({
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0, flashWhite: false,
 });
 
+/* Alineado por pies: los frames "fire" y "hurt" adelantan la postura (los pies
+   se separan hacia delante), asi que al alternar con "aim" el personaje pega un
+   salto ridiculo. Medimos el centro horizontal de los pies de cada pose y
+   corregimos fire/hurt para que sus pies caigan sobre los de aim. */
+const FEET_KEYS = ["aim", "fire", "hurt", "s_aim", "s_fire", "s_hurt", "a_aim", "a_fire", "a_hurt"];
+const FEET_REF = { fire: "aim", hurt: "aim", s_fire: "s_aim", s_hurt: "s_aim", a_fire: "a_aim", a_hurt: "a_aim" };
+let _feetCanvas = null;
+function feetCenter(im) {
+  if (typeof document === "undefined") return null;
+  if (!_feetCanvas) { _feetCanvas = document.createElement("canvas"); _feetCanvas.width = FRAME_W; _feetCanvas.height = FRAME_H; }
+  const c = _feetCanvas.getContext("2d", { willReadFrequently: true });
+  c.clearRect(0, 0, FRAME_W, FRAME_H);
+  c.drawImage(im, 0, 0, FRAME_W, FRAME_H);
+  let d;
+  try { d = c.getImageData(0, 0, FRAME_W, FRAME_H).data; } catch { return null; }
+  let bottom = -1;
+  for (let y = FRAME_H - 1; y >= 0 && bottom < 0; y--) {
+    for (let x = 0; x < FRAME_W; x++) if (d[(y * FRAME_W + x) * 4 + 3] > 40) { bottom = y; break; }
+  }
+  if (bottom < 0) return null;
+  let sum = 0, n = 0;
+  for (let y = Math.max(0, bottom - 12); y <= bottom; y++)
+    for (let x = 0; x < FRAME_W; x++) if (d[(y * FRAME_W + x) * 4 + 3] > 40) { sum += x; n++; }
+  return n ? sum / n : null;
+}
+
 function encounter(n) {
   const isBoss = n > 0 && n % 5 === 0;
   const s = Math.pow(1.16, n);
@@ -322,6 +348,7 @@ export default function LeoRun() {
   const cv = useRef(null);
   const g = useRef(freshGame());
   const IMG = useRef({});
+  const feet = useRef({});   // centro horizontal de los pies por pose (para alinear fire/hurt)
   const phaseRef = useRef("title");
   const [ready, setReady] = useState(false);
   const [phase, setPhase] = useState("title");
@@ -352,7 +379,10 @@ export default function LeoRun() {
     const keys = Object.keys(SPR); let n = 0;
     keys.forEach(k => {
       const im = new Image();
-      im.onload = () => { n++; if (n === keys.length) setReady(true); };
+      im.onload = () => {
+        if (FEET_KEYS.includes(k)) feet.current[k] = feetCenter(im);
+        n++; if (n === keys.length) setReady(true);
+      };
       im.src = SPR[k]; IMG.current[k] = im;
     });
   }, []);
@@ -714,7 +744,10 @@ export default function LeoRun() {
 
     // Todos los frames 420x440: se dibujan igual, con la linea de suelo (y=418) sobre GY.
     const w = FRAME_W * DRAW_SC, h = FRAME_H * DRAW_SC;
-    const dx = LEO_X - w / 2, dy = GY - GROUND * DRAW_SC;
+    // Correccion horizontal de pies: fire/hurt adelantan la postura; se alinean a aim.
+    const ref = FEET_REF[key], fc = feet.current;
+    const feetFix = (ref && fc[ref] != null && fc[key] != null) ? (fc[ref] - fc[key]) * DRAW_SC : 0;
+    const dx = LEO_X - w / 2 + feetFix, dy = GY - GROUND * DRAW_SC;
 
     ctx.save();
     ctx.beginPath(); ctx.ellipse(LEO_X, GY - 2, 32, 6, 0, 0, Math.PI * 2);
