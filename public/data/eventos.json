@@ -1,0 +1,318 @@
+{
+  "_formato": {
+    "descripcion": "Eventos aleatorios entre combates. Uno cada 3 encuentros.",
+    "efectos_disponibles": {
+      "vida": "suma o resta vida actual (entero)",
+      "vida_max": "suma vida maxima y cura esa cantidad",
+      "monedas": "suma o resta monedas",
+      "dano_mult": "multiplica el dano (1.15 = +15%)",
+      "cadencia_mult": "multiplica el tiempo entre disparos (0.9 = 10% mas rapido)",
+      "critico": "suma probabilidad de critico (0.1 = +10%)",
+      "mejora": "da una carta de mejora de la rareza indicada",
+      "super_carga": "llena la barra de super (1.0 = del todo)",
+      "escudo": "aguanta N golpes sin recibir dano",
+      "siguiente_combate": "'facil' o 'dificil' para el proximo encuentro"
+    },
+    "nota": "Si una opcion tiene varios resultados, sus prob deben sumar 1."
+  },
+
+  "eventos": [
+    {
+      "id": "caja_herramientas",
+      "titulo": "Una caja abandonada",
+      "texto": "Entre los arbustos hay una caja de herramientas oxidada. Se oye algo dentro.",
+      "opciones": [
+        { "texto": "Abrirla", "resultados": [
+          { "prob": 0.6, "mensaje": "¡Dentro hay piezas para mejorar el arma!", "efectos": [{"tipo":"mejora","rareza":"rara"}] },
+          { "prob": 0.4, "mensaje": "Era una trampa. Un zombi te muerde la mano.", "efectos": [{"tipo":"vida","valor":-15}] }
+        ]},
+        { "texto": "Golpearla desde lejos", "resultados": [
+          { "prob": 1, "mensaje": "Se abre de un tiro. Algo util sale rodando.", "efectos": [{"tipo":"mejora","rareza":"comun"}] }
+        ]},
+        { "texto": "Ignorarla y seguir", "resultados": [
+          { "prob": 1, "mensaje": "Mejor no arriesgarse. Encuentras monedas por el camino.", "efectos": [{"tipo":"monedas","valor":40}] }
+        ]}
+      ]
+    },
+    {
+      "id": "fuente",
+      "titulo": "Una fuente en el claro",
+      "texto": "El agua brilla rara, entre azul y verde. Tienes sed.",
+      "opciones": [
+        { "texto": "Beber a morro", "resultados": [
+          { "prob": 0.55, "mensaje": "Sabe fatal, pero te sientes mas fuerte.", "efectos": [{"tipo":"vida_max","valor":25}] },
+          { "prob": 0.45, "mensaje": "Te sienta como una patada.", "efectos": [{"tipo":"vida","valor":-20}] }
+        ]},
+        { "texto": "Llenar la cantimplora", "resultados": [
+          { "prob": 1, "mensaje": "Guardas un poco por si acaso.", "efectos": [{"tipo":"vida","valor":30}] }
+        ]},
+        { "texto": "Lavarte la cara y seguir", "resultados": [
+          { "prob": 1, "mensaje": "Despejado. Ves venir a los zombis antes.", "efectos": [{"tipo":"critico","valor":0.08}] }
+        ]}
+      ]
+    },
+    {
+      "id": "perro",
+      "titulo": "Un perro perdido",
+      "texto": "Un perro flaco te sigue a distancia. No parece zombi. Parece hambriento.",
+      "opciones": [
+        { "texto": "Darle tu bocadillo", "resultados": [
+          { "prob": 1, "mensaje": "Te acompaña un rato y ladra cuando vienen enemigos.", "efectos": [{"tipo":"vida","valor":-10},{"tipo":"siguiente_combate","valor":"facil"}] }
+        ]},
+        { "texto": "Comertelo tu", "resultados": [
+          { "prob": 1, "mensaje": "El perro se va. Tu estas lleno.", "efectos": [{"tipo":"vida","valor":35}] }
+        ]}
+      ]
+    },
+    {
+      "id": "cabina",
+      "titulo": "Una cabina de telefono",
+      "texto": "Una cabina en medio del bosque, y esta sonando.",
+      "opciones": [
+        { "texto": "Contestar", "resultados": [
+          { "prob": 0.5, "mensaje": "Una voz te dice donde estan escondidos los zombis.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"},{"tipo":"monedas","valor":30}] },
+          { "prob": 0.5, "mensaje": "El ruido atrae a media horda.", "efectos": [{"tipo":"siguiente_combate","valor":"dificil"},{"tipo":"mejora","rareza":"rara"}] }
+        ]},
+        { "texto": "Arrancar el cable", "resultados": [
+          { "prob": 1, "mensaje": "Silencio. Y un cable de cobre que vale dinero.", "efectos": [{"tipo":"monedas","valor":60}] }
+        ]}
+      ]
+    },
+    {
+      "id": "porteria",
+      "titulo": "Una porteria oxidada",
+      "texto": "Media porteria de futbol asoma entre la maleza. Hay un balon desinflado al lado.",
+      "opciones": [
+        { "texto": "Tirar a puerta", "resultados": [
+          { "prob": 0.7, "mensaje": "¡Golazo! Te subes arriba y te sientes imparable.", "efectos": [{"tipo":"dano_mult","valor":1.2}] },
+          { "prob": 0.3, "mensaje": "El balon rebota y te da en la cara.", "efectos": [{"tipo":"vida","valor":-10}] }
+        ]},
+        { "texto": "Arrancar la red", "resultados": [
+          { "prob": 1, "mensaje": "Una red sirve para muchas cosas. Como frenar zombis.", "efectos": [{"tipo":"escudo","valor":2}] }
+        ]}
+      ]
+    },
+    {
+      "id": "hoguera",
+      "titulo": "Restos de una hoguera",
+      "texto": "Alguien acampo aqui hace poco. Las brasas siguen calientes.",
+      "opciones": [
+        { "texto": "Descansar un rato", "resultados": [
+          { "prob": 1, "mensaje": "Recuperas fuerzas junto al fuego.", "efectos": [{"tipo":"vida","valor":45}] }
+        ]},
+        { "texto": "Rebuscar entre las cenizas", "resultados": [
+          { "prob": 0.6, "mensaje": "Encuentras munición escondida.", "efectos": [{"tipo":"cadencia_mult","valor":0.85}] },
+          { "prob": 0.4, "mensaje": "Solo ceniza. Y te quemas la mano.", "efectos": [{"tipo":"vida","valor":-8}] }
+        ]},
+        { "texto": "Apagarla y seguir", "resultados": [
+          { "prob": 1, "mensaje": "Sin humo no te ven venir.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"}] }
+        ]}
+      ]
+    },
+    {
+      "id": "cientifico",
+      "titulo": "Un cientifico escondido",
+      "texto": "Un hombre con bata sale de detras de un arbol. Dice que sabe como empezo todo.",
+      "opciones": [
+        { "texto": "Escuchar su historia", "resultados": [
+          { "prob": 1, "mensaje": "Habla veinte minutos. Al final te da un frasco raro.", "efectos": [{"tipo":"mejora","rareza":"epica"},{"tipo":"siguiente_combate","valor":"dificil"}] }
+        ]},
+        { "texto": "Pedirle que te acompañe", "resultados": [
+          { "prob": 0.5, "mensaje": "Te ayuda un rato y te cura las heridas.", "efectos": [{"tipo":"vida","valor":50}] },
+          { "prob": 0.5, "mensaje": "Sale corriendo y te roba las monedas.", "efectos": [{"tipo":"monedas","valor":-50}] }
+        ]},
+        { "texto": "Seguir tu camino", "resultados": [
+          { "prob": 1, "mensaje": "No tienes tiempo para charlas.", "efectos": [{"tipo":"monedas","valor":25}] }
+        ]}
+      ]
+    },
+    {
+      "id": "tormenta",
+      "titulo": "Se acerca una tormenta",
+      "texto": "El cielo se pone morado y el aire zumba. Va a caer algo gordo.",
+      "opciones": [
+        { "texto": "Refugiarte bajo un arbol", "resultados": [
+          { "prob": 0.65, "mensaje": "Pasa la tormenta. Descansado.", "efectos": [{"tipo":"vida","valor":30}] },
+          { "prob": 0.35, "mensaje": "Un rayo parte el arbol a tu lado.", "efectos": [{"tipo":"vida","valor":-25},{"tipo":"super_carga","valor":1.0}] }
+        ]},
+        { "texto": "Correr bajo la lluvia", "resultados": [
+          { "prob": 1, "mensaje": "La electricidad del aire te carga por dentro.", "efectos": [{"tipo":"super_carga","valor":1.0}] }
+        ]}
+      ]
+    },
+    {
+      "id": "estatua",
+      "titulo": "Una estatua de piedra",
+      "texto": "Una estatua vieja con la mano abierta, como pidiendo algo.",
+      "opciones": [
+        { "texto": "Dejar 80 monedas en la mano", "coste": {"monedas": 80}, "resultados": [
+          { "prob": 1, "mensaje": "La estatua brilla. Notas el cuerpo mas duro.", "efectos": [{"tipo":"vida_max","valor":40}] }
+        ]},
+        { "texto": "Intentar romperla", "resultados": [
+          { "prob": 0.4, "mensaje": "Dentro habia un tesoro.", "efectos": [{"tipo":"monedas","valor":150}] },
+          { "prob": 0.6, "mensaje": "Solo consigues hacerte daño en el pie.", "efectos": [{"tipo":"vida","valor":-12}] }
+        ]},
+        { "texto": "Saludarla y seguir", "resultados": [
+          { "prob": 1, "mensaje": "Nunca se sabe. Mejor caer bien.", "efectos": [] }
+        ]}
+      ]
+    },
+    {
+      "id": "puente",
+      "titulo": "Un puente medio roto",
+      "texto": "El puente cruje. Abajo hay un atajo lleno de zombis dormidos.",
+      "opciones": [
+        { "texto": "Cruzar por arriba con cuidado", "resultados": [
+          { "prob": 0.75, "mensaje": "Pasas sin que se enteren.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"}] },
+          { "prob": 0.25, "mensaje": "Se rompe una tabla y caes.", "efectos": [{"tipo":"vida","valor":-30}] }
+        ]},
+        { "texto": "Bajar y buscar entre ellos", "resultados": [
+          { "prob": 1, "mensaje": "Botin, pero los despiertas a todos.", "efectos": [{"tipo":"monedas","valor":120},{"tipo":"siguiente_combate","valor":"dificil"}] }
+        ]}
+      ]
+    },
+    {
+      "id": "espejo",
+      "titulo": "Un espejo roto",
+      "texto": "Un espejo enorme apoyado en un arbol. Tu reflejo tarda un segundo en moverse.",
+      "opciones": [
+        { "texto": "Tocarlo", "resultados": [
+          { "prob": 0.5, "mensaje": "Tu reflejo te copia los movimientos. Disparas mas rapido.", "efectos": [{"tipo":"cadencia_mult","valor":0.8}] },
+          { "prob": 0.5, "mensaje": "Tu reflejo sonrie cuando tu no. Sales corriendo.", "efectos": [{"tipo":"vida","valor":-15},{"tipo":"critico","valor":0.1}] }
+        ]},
+        { "texto": "Romperlo del todo", "resultados": [
+          { "prob": 1, "mensaje": "Recoges un trozo afilado. Corta bien.", "efectos": [{"tipo":"dano_mult","valor":1.15}] }
+        ]}
+      ]
+    },
+    {
+      "id": "nino_perdido",
+      "titulo": "Alguien llora",
+      "texto": "Se oye a un niño llorando detras de unas rocas. O eso parece.",
+      "opciones": [
+        { "texto": "Ir a ayudar", "resultados": [
+          { "prob": 0.55, "mensaje": "Era de verdad. Te da las gracias y una chapa de la suerte.", "efectos": [{"tipo":"critico","valor":0.12}] },
+          { "prob": 0.45, "mensaje": "Era un zombi imitando. Emboscada.", "efectos": [{"tipo":"vida","valor":-25},{"tipo":"monedas","valor":60}] }
+        ]},
+        { "texto": "Llamarle desde lejos", "resultados": [
+          { "prob": 1, "mensaje": "No contesta. Sales de dudas y de alli.", "efectos": [] }
+        ]}
+      ]
+    },
+    {
+      "id": "camion",
+      "titulo": "Un camion volcado",
+      "texto": "Un camion de reparto tumbado en la cuneta. Las puertas traseras estan abolladas.",
+      "opciones": [
+        { "texto": "Forzar las puertas", "resultados": [
+          { "prob": 0.6, "mensaje": "Cajas de refrescos y algo mejor al fondo.", "efectos": [{"tipo":"mejora","rareza":"rara"},{"tipo":"vida","valor":20}] },
+          { "prob": 0.4, "mensaje": "Estaba lleno. De zombis.", "efectos": [{"tipo":"siguiente_combate","valor":"dificil"},{"tipo":"monedas","valor":80}] }
+        ]},
+        { "texto": "Vaciar el deposito", "resultados": [
+          { "prob": 1, "mensaje": "Combustible. Arde bien y se vende mejor.", "efectos": [{"tipo":"monedas","valor":70}] }
+        ]}
+      ]
+    },
+    {
+      "id": "mercader",
+      "titulo": "Un vendedor con capucha",
+      "texto": "Un tipo con un carrito lleno de trastos te hace señas. No se le ve la cara.",
+      "opciones": [
+        { "texto": "Comprar el frasco brillante (100)", "coste": {"monedas": 100}, "resultados": [
+          { "prob": 1, "mensaje": "Sabe a chicle. Te notas mas fuerte.", "efectos": [{"tipo":"dano_mult","valor":1.3}] }
+        ]},
+        { "texto": "Comprar la caja cerrada (60)", "coste": {"monedas": 60}, "resultados": [
+          { "prob": 0.5, "mensaje": "¡Premio!", "efectos": [{"tipo":"mejora","rareza":"epica"}] },
+          { "prob": 0.5, "mensaje": "Calcetines. Gracias.", "efectos": [] }
+        ]},
+        { "texto": "No comprar nada", "resultados": [
+          { "prob": 1, "mensaje": "El vendedor se encoge de hombros y desaparece.", "efectos": [] }
+        ]}
+      ]
+    },
+    {
+      "id": "cementerio",
+      "titulo": "Lapidas alineadas",
+      "texto": "Un cementerio pequeño. La tierra de una tumba esta removida. Por dentro.",
+      "opciones": [
+        { "texto": "Cavar", "resultados": [
+          { "prob": 0.45, "mensaje": "Un cofre enterrado. Alguien escondia cosas buenas.", "efectos": [{"tipo":"mejora","rareza":"epica"}] },
+          { "prob": 0.55, "mensaje": "Sale una mano y te agarra el tobillo.", "efectos": [{"tipo":"vida","valor":-35}] }
+        ]},
+        { "texto": "Poner flores y seguir", "resultados": [
+          { "prob": 1, "mensaje": "Te vas con la conciencia tranquila y la barra cargada.", "efectos": [{"tipo":"super_carga","valor":0.5}] }
+        ]}
+      ]
+    },
+    {
+      "id": "radio",
+      "titulo": "Una radio con pilas",
+      "texto": "Una radio vieja emite estatica. A ratos se oye una voz repitiendo numeros.",
+      "opciones": [
+        { "texto": "Escuchar hasta el final", "resultados": [
+          { "prob": 1, "mensaje": "Son coordenadas. Sabes por donde ir.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"},{"tipo":"monedas","valor":50}] }
+        ]},
+        { "texto": "Quitarle las pilas", "resultados": [
+          { "prob": 1, "mensaje": "Pilas cargadas. Tu arma tambien.", "efectos": [{"tipo":"cadencia_mult","valor":0.88}] }
+        ]}
+      ]
+    },
+    {
+      "id": "columpios",
+      "titulo": "Un parque vacio",
+      "texto": "Los columpios se mueven solos. No hay viento.",
+      "opciones": [
+        { "texto": "Montarte en uno", "resultados": [
+          { "prob": 0.7, "mensaje": "Te rias por primera vez en dias. Sienta bien.", "efectos": [{"tipo":"vida","valor":40},{"tipo":"super_carga","valor":0.5}] },
+          { "prob": 0.3, "mensaje": "La cadena se rompe y te das un golpe.", "efectos": [{"tipo":"vida","valor":-15}] }
+        ]},
+        { "texto": "Registrar el tobogan", "resultados": [
+          { "prob": 1, "mensaje": "Alguien escondio ahi una mochila.", "efectos": [{"tipo":"mejora","rareza":"comun"},{"tipo":"monedas","valor":30}] }
+        ]}
+      ]
+    },
+    {
+      "id": "zombi_atado",
+      "titulo": "Un zombi atado a un arbol",
+      "texto": "Alguien lo dejo ahi amarrado. Lleva una mochila puesta.",
+      "opciones": [
+        { "texto": "Quitarle la mochila", "resultados": [
+          { "prob": 0.6, "mensaje": "Lo consigues sin que te alcance.", "efectos": [{"tipo":"mejora","rareza":"rara"}] },
+          { "prob": 0.4, "mensaje": "Te muerde el brazo antes de soltarla.", "efectos": [{"tipo":"vida","valor":-20},{"tipo":"mejora","rareza":"comun"}] }
+        ]},
+        { "texto": "Practicar punteria con el", "resultados": [
+          { "prob": 1, "mensaje": "Unos cuantos tiros y mejoras el pulso.", "efectos": [{"tipo":"critico","valor":0.1}] }
+        ]},
+        { "texto": "Dejarlo en paz", "resultados": [
+          { "prob": 1, "mensaje": "Suficientes problemas tienes.", "efectos": [] }
+        ]}
+      ]
+    },
+    {
+      "id": "bifurcacion",
+      "titulo": "El camino se parte en dos",
+      "texto": "A la izquierda, un sendero despejado. A la derecha, ruido y algo que brilla.",
+      "opciones": [
+        { "texto": "Ir por la izquierda", "resultados": [
+          { "prob": 1, "mensaje": "Tranquilo y sin sorpresas.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"},{"tipo":"vida","valor":15}] }
+        ]},
+        { "texto": "Ir por la derecha", "resultados": [
+          { "prob": 1, "mensaje": "Mas peligro, pero merece la pena.", "efectos": [{"tipo":"siguiente_combate","valor":"dificil"},{"tipo":"mejora","rareza":"epica"}] }
+        ]}
+      ]
+    },
+    {
+      "id": "chaleco",
+      "titulo": "Un chaleco reflectante",
+      "texto": "Colgado de una rama, un chaleco de obra naranja fosforito. Se ve a kilometros.",
+      "opciones": [
+        { "texto": "Ponertelo", "resultados": [
+          { "prob": 1, "mensaje": "Te protege, pero te ven venir de lejos.", "efectos": [{"tipo":"escudo","valor":3},{"tipo":"siguiente_combate","valor":"dificil"}] }
+        ]},
+        { "texto": "Usarlo de señuelo", "resultados": [
+          { "prob": 1, "mensaje": "Lo cuelgas lejos. Los zombis van hacia alli.", "efectos": [{"tipo":"siguiente_combate","valor":"facil"}] }
+        ]}
+      ]
+    }
+  ]
+}
