@@ -85,19 +85,40 @@ const KINDS = {
    `apply(p, stars)` recalcula la stat desde su base segun el total de estrellas
    (idempotente), y `fmt(stars)` describe el efecto acumulado a ese nivel. */
 const MAX_STARS = 5;
-const BASE = { dmg: 16, maxHp: 130, crit: 0.05, superKills: 12 };
+// Los efectos parten de p.base (las estadisticas base del personaje, ya
+// influidas por la progresion permanente) para que mejoras de partida y
+// progresion permanente se sumen sin pisarse.
 const UPGRADES = [
-  { id: "dmg",    icon: "🔥", name: "Tiro potente",       fmt: n => `+${8 * n}% de daño`,             apply: (p, n) => { p.dmg = BASE.dmg * (1 + 0.08 * n); } },
-  { id: "spd",    icon: "👟", name: "Botas veloces",      fmt: n => `+${8 * n}% de cadencia`,          apply: (p, n) => { p.rate = 1 / (1 + 0.08 * n); } },
-  { id: "hp",     icon: "❤️", name: "Corazón de campeón", fmt: n => `+${20 * n} vida máx. y cura`,      apply: (p, n) => { const nm = BASE.maxHp + 20 * n; p.hp += nm - p.maxHp; p.maxHp = nm; } },
-  { id: "crit",   icon: "🎯", name: "Puntería",           fmt: n => `+${5 * n}% de crítico (x2)`,       apply: (p, n) => { p.crit = BASE.crit + 0.05 * n; } },
+  { id: "dmg",    icon: "🔥", name: "Tiro potente",       fmt: n => `+${8 * n}% de daño`,             apply: (p, n) => { p.dmg = p.base.dmg * (1 + 0.08 * n); } },
+  { id: "spd",    icon: "👟", name: "Botas veloces",      fmt: n => `+${8 * n}% de cadencia`,          apply: (p, n) => { p.rate = p.base.rate / (1 + 0.08 * n); } },
+  { id: "hp",     icon: "❤️", name: "Corazón de campeón", fmt: n => `+${20 * n} vida máx. y cura`,      apply: (p, n) => { const nm = p.base.maxHp + 20 * n; p.hp += nm - p.maxHp; p.maxHp = nm; } },
+  { id: "crit",   icon: "🎯", name: "Puntería",           fmt: n => `+${5 * n}% de crítico (x2)`,       apply: (p, n) => { p.crit = p.base.crit + 0.05 * n; } },
   { id: "multi",  icon: "➕", name: "Tiro múltiple",      fmt: n => `+${n} proyectil${n > 1 ? "es" : ""} por disparo`, apply: (p, n) => { p.multi = 1 + n; } },
   { id: "armor",  icon: "🛡️", name: "Piel dura",          fmt: n => `-${8 * n}% de daño recibido`,      apply: (p, n) => { p.armor = 1 - 0.08 * n; } },
   { id: "steal",  icon: "🩹", name: "Segundo aire",       fmt: n => `+${2 * n} vida por golpe`,         apply: (p, n) => { p.steal = 2 * n; } },
-  { id: "gold",   icon: "💰", name: "Fichaje",            fmt: n => `+${10 * n}% de monedas`,           apply: (p, n) => { p.gold = 1 + 0.10 * n; } },
+  { id: "gold",   icon: "💰", name: "Fichaje",            fmt: n => `+${10 * n}% de monedas`,           apply: (p, n) => { p.gold = p.base.gold + 0.10 * n; } },
   { id: "pierce", icon: "🌀", name: "Efecto",             fmt: n => `Los tiros atraviesan +${n}`,       apply: (p, n) => { p.pierce = n; } },
-  { id: "super",  icon: "⚡", name: "Súper recarga",       fmt: n => `-${8 * n}% de muertes para el súper`, apply: (p, n) => { p.superKills = Math.round(BASE.superKills * (1 - 0.08 * n)); } },
+  { id: "super",  icon: "⚡", name: "Súper recarga",       fmt: n => `-${8 * n}% de muertes para el súper`, apply: (p, n) => { p.superKills = Math.round(SUPER_KILLS * (1 - 0.08 * n)); } },
 ];
+
+/* ===== PROGRESION PERMANENTE (entre partidas) =====
+   Las monedas se acumulan y se conservan al morir; entre partidas suben las
+   estadisticas BASE del personaje. Todo se guarda en localStorage. */
+const META = [
+  { id: "dmg",   icon: "🔥", name: "Daño base",            max: 10, fmt: l => `daño base ${9 + l}` },
+  { id: "hp",    icon: "❤️", name: "Vida máxima",          max: 10, fmt: l => `${130 + 15 * l} vida (+${15 * l})` },
+  { id: "spd",   icon: "👟", name: "Cadencia",             max: 10, fmt: l => `-${3 * l}% de espera` },
+  { id: "crit",  icon: "🎯", name: "Crítico",              max: 10, fmt: l => `+${2 * l}% de crítico` },
+  { id: "gold",  icon: "💰", name: "Monedas ganadas",      max: 10, fmt: l => `+${5 * l}% de monedas` },
+  { id: "super", icon: "⚡", name: "Carga inicial súper",  max: 10, fmt: l => `+${8 * l}% de carga inicial` },
+];
+// Coste para pasar del nivel `lvl` al `lvl+1`: 50 x 1,5^lvl, redondeado a la decena.
+const metaCost = lvl => Math.round(50 * Math.pow(1.5, lvl) / 10) * 10;
+const loadMeta = () => {
+  try { const m = JSON.parse(localStorage.getItem("leoMeta") || "{}"); return { coins: m.coins || 0, levels: m.levels || {} }; }
+  catch { return { coins: 0, levels: {} }; }
+};
+const saveMeta = m => { try { localStorage.setItem("leoMeta", JSON.stringify(m)); } catch { /* ignore */ } };
 // Recompensas de relleno cuando faltan mejoras no maximizadas (o estan todas al tope).
 const FILLERS = [
   { kind: "coins", icon: "💰", name: "Monedas", desc: "+150 monedas", amount: 150 },
@@ -139,21 +160,37 @@ const SFX = {
 };
 
 /* ===== STATE ===== */
-const freshP = () => ({
-  hp: 130, maxHp: 130, dmg: 16, rate: 1, crit: 0.05, multi: 1,
-  armor: 1, steal: 0, gold: 1, pierce: 0, superKills: SUPER_KILLS,
-  stars: {},   // estrellas por mejora (id -> 0..MAX_STARS)
-});
-const freshGame = () => ({
-  p: freshP(), char: "leo", coins: 0, enc: 0, dist: 0, worldX: 0,
+// Estadisticas BASE derivadas de la progresion permanente (niveles de meta).
+const freshP = (meta = { levels: {} }) => {
+  const L = meta.levels || {};
+  const base = {
+    dmg: 9 + (L.dmg || 0),            // +1 por nivel, empieza en 9
+    maxHp: 130 + 15 * (L.hp || 0),    // +15 por nivel
+    rate: 1 - 0.03 * (L.spd || 0),    // -3% de espera por nivel
+    crit: 0.05 + 0.02 * (L.crit || 0),// +2% por nivel
+    gold: 1 + 0.05 * (L.gold || 0),   // +5% monedas por nivel
+  };
+  return {
+    hp: base.maxHp, maxHp: base.maxHp, dmg: base.dmg, rate: base.rate, crit: base.crit,
+    multi: 1, armor: 1, steal: 0, gold: base.gold, pierce: 0, superKills: SUPER_KILLS,
+    stars: {}, base,   // base = punto de partida para las mejoras de partida
+  };
+};
+const freshGame = (meta = { levels: {} }, char = "leo") => {
+  const p = freshP(meta);
+  // Carga inicial del super: +8% de la barra por nivel (solo personajes con super).
+  const superInit = CHARS[char].hasSuper ? Math.round(p.superKills * 0.08 * (meta.levels?.super || 0)) : 0;
+  return {
+  p, char, coins: 0, enc: 0, dist: 0, worldX: 0,
   enemies: [], balls: [], parts: [], texts: [], fx: [],
   atkT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
   winT: 0, pendingChoices: null, superWin: false,
   // super: barra que se llena al matar; fases off -> trans -> active -> murasaki
-  superFill: 0, superPhase: "off", transT: 0, superT: 0, superSprite: false,
+  superFill: Math.min(p.superKills, superInit), superPhase: "off", transT: 0, superT: 0, superSprite: false,
   murasaki: null, mHits: null, mOrb: null,
   shake: 0, shakeT: 0, nextEnc: 400, spawnQ: [], spawnT: 0, clouds: [], flash: 0, flashWhite: false,
-});
+  };
+};
 
 /* Alineado por pies: los frames "fire" y "hurt" adelantan la postura (los pies
    se separan hacia delante), asi que al alternar con "aim" el personaje pega un
@@ -380,6 +417,9 @@ export default function LeoRun() {
   const [muted, setMuted] = useState(false);
   const [banner, setBanner] = useState(null);
   const [menu, setMenu] = useState(null);              // null | "settings" | "trophy"
+  const [meta, setMeta] = useState(loadMeta);          // progresion permanente: { coins, levels }
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [lastRun, setLastRun] = useState(0);           // monedas ganadas en la ultima partida
   const [best, setBest] = useState(() => {
     try { return JSON.parse(localStorage.getItem("leoBest") || "{}"); } catch { return {}; }
   });
@@ -396,6 +436,17 @@ export default function LeoRun() {
     });
   }, [phase]);   // eslint-disable-line react-hooks/exhaustive-deps
   const shake = m => { const s = g.current; s.shake = Math.max(s.shake, m); s.shakeT = 0.3; };
+
+  // Progresion permanente: ingresar monedas de la partida, comprar niveles, reiniciar.
+  const bankCoins = amount => setMeta(m => { const nm = { ...m, coins: m.coins + amount }; saveMeta(nm); return nm; });
+  const buyMeta = id => setMeta(m => {
+    const lvl = m.levels[id] || 0, def = META.find(u => u.id === id);
+    if (lvl >= def.max || m.coins < metaCost(lvl)) return m;
+    SFX.coin();
+    const nm = { coins: m.coins - metaCost(lvl), levels: { ...m.levels, [id]: lvl + 1 } };
+    saveMeta(nm); return nm;
+  });
+  const resetMeta = () => { const nm = { coins: 0, levels: {} }; saveMeta(nm); setMeta(nm); setConfirmReset(false); };
 
   useEffect(() => {
     const keys = Object.keys(SPR); let n = 0;
@@ -503,7 +554,7 @@ export default function LeoRun() {
           p.hp -= d; s.hurtT = .3; s.state = "hurt"; s.poseT = .3;
           SFX.ouch(); shake(6);
           s.texts.push({ x: LEO_X, y: GY - 110, t: .7, txt: "-" + d, c: "#FF6B6B", size: 19 });
-          if (p.hp <= 0) { p.hp = 0; s.state = "ko"; SFX.ko(); setPhaseBoth("gameover"); return; }
+          if (p.hp <= 0) { p.hp = 0; s.state = "ko"; SFX.ko(); setLastRun(s.coins); bankCoins(s.coins); setPhaseBoth("gameover"); return; }
         }
       }
       e.anim += dt * KINDS[e.kind].fps;
@@ -880,15 +931,17 @@ export default function LeoRun() {
     }
     SFX.coin(); syncHud(s); setPhaseBoth("run");
   };
-  // Empieza una partida con el personaje elegido (leo | alex).
+  // Empieza una partida con el personaje elegido (leo | alex), aplicando la
+  // progresion permanente a las estadisticas base.
   const startGame = useCallback(char => {
     const clouds = g.current.clouds;
-    g.current = freshGame(); g.current.clouds = clouds; g.current.char = char;
-    setTaken([]); setHud({ hp: 130, maxHp: 130, coins: 0, enc: 0, char, superPct: 0, superReady: false, superActive: false, superT: 0 });
+    g.current = freshGame(meta, char); g.current.clouds = clouds;
+    const p = g.current.p;
+    setTaken([]); setHud({ hp: p.hp, maxHp: p.maxHp, coins: 0, enc: 0, char, superPct: g.current.superFill / p.superKills, superReady: false, superActive: false, superT: 0 });
     setMenu(null); setPhaseBoth("run");
-  }, []);
+  }, [meta]);
 
-  const inMenus = phase === "title" || phase === "select";
+  const inMenus = phase === "title" || phase === "select" || phase === "shop";
   const showSuper = hud.char !== "alex";   // Alex aun no tiene super
 
   return (
@@ -976,12 +1029,15 @@ export default function LeoRun() {
           </div>
         )}
         {phase === "gameover" && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2" style={{ background: "rgba(20,30,24,.93)", borderRadius: 18 }}>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3" style={{ background: "rgba(20,30,24,.93)", borderRadius: 18 }}>
             <p className="font-black text-2xl" style={{ color: "#FF7A7A" }}>{CHARS[hud.char]?.name || "Leo"} ha caído</p>
-            <p className="text-sm" style={{ color: "#9BB3A6" }}>{hud.enc} combates · {hud.coins} monedas</p>
-            <div className="flex gap-2 mt-2">
-              <button onClick={() => startGame(hud.char)} className="px-6 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Otra vez</button>
-              <button onClick={() => setPhaseBoth("select")} className="px-6 py-2.5 font-black" style={{ background: C.card, color: "#EAF3ED", border: "3px solid " + C.line, borderRadius: 12 }}>Cambiar héroe</button>
+            <p className="text-sm" style={{ color: "#9BB3A6" }}>{hud.enc} combates superados</p>
+            <p className="text-base font-black" style={{ color: "#FFD54A" }}>💰 +{lastRun} monedas esta partida</p>
+            <p className="text-xs" style={{ color: "#9BB3A6" }}>Total disponible: {meta.coins}</p>
+            <button onClick={() => { setConfirmReset(false); setPhaseBoth("shop"); }} className="mt-1 px-6 py-2.5 font-black" style={{ background: "#8B5CF6", color: "#fff", borderRadius: 12, boxShadow: "0 4px 0 rgba(0,0,0,.35)" }}>🛒 Mejoras permanentes</button>
+            <div className="flex gap-2 mt-1">
+              <button onClick={() => startGame(hud.char)} className="px-5 py-2.5 font-black" style={{ background: "#FFD54A", color: C.ink, borderRadius: 12 }}>Otra vez</button>
+              <button onClick={() => setPhaseBoth("select")} className="px-5 py-2.5 font-black" style={{ background: C.card, color: "#EAF3ED", border: "3px solid " + C.line, borderRadius: 12 }}>Cambiar héroe</button>
             </div>
           </div>
         )}
@@ -1031,8 +1087,58 @@ export default function LeoRun() {
                 );
               })}
             </div>
-            <button onClick={() => setPhaseBoth("title")} className="text-xs mt-1 px-4 py-1.5 font-black"
-              style={{ color: "#9BB3A6", background: "transparent", border: "2px solid " + C.line, borderRadius: 10 }}>Volver</button>
+            <div className="flex gap-2 mt-1">
+              <button onClick={() => { setConfirmReset(false); setPhaseBoth("shop"); }} className="px-4 py-1.5 font-black text-sm"
+                style={{ color: "#fff", background: "#8B5CF6", borderRadius: 10, boxShadow: "0 3px 0 rgba(0,0,0,.3)" }}>🛒 Mejoras · 💰 {meta.coins}</button>
+              <button onClick={() => setPhaseBoth("title")} className="px-4 py-1.5 font-black text-sm"
+                style={{ color: "#9BB3A6", background: "transparent", border: "2px solid " + C.line, borderRadius: 10 }}>Volver</button>
+            </div>
+          </div>
+        )}
+
+        {phase === "shop" && (
+          <div className="absolute inset-0 flex flex-col p-3 sm:p-4" style={{ background: "linear-gradient(#0e2138,#0a1728)", borderRadius: 18, overflowY: "auto" }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="font-black text-base sm:text-lg" style={{ color: "#FFD54A" }}>🛒 Mejoras permanentes</p>
+              <span className="font-black text-base" style={{ color: "#FFD54A" }}>💰 {meta.coins}</span>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {META.map(u => {
+                const lvl = meta.levels[u.id] || 0, maxed = lvl >= u.max, cost = metaCost(lvl);
+                const afford = meta.coins >= cost;
+                return (
+                  <div key={u.id} className="flex items-center gap-2 p-2" style={{ background: C.card, border: "2px solid " + C.line, borderRadius: 10 }}>
+                    <span className="text-xl">{u.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-black text-xs sm:text-sm" style={{ color: "#EAF3ED" }}>{u.name} <span style={{ color: "#7DD3FC" }}>Nv. {lvl}/{u.max}</span></div>
+                      <div className="text-xs" style={{ color: "#9BB3A6" }}>{u.fmt(lvl)}</div>
+                      <div style={{ height: 5, marginTop: 3, background: "#07182c", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ width: (lvl / u.max * 100) + "%", height: "100%", background: "linear-gradient(90deg,#FFD54A,#8B5CF6)" }} />
+                      </div>
+                    </div>
+                    <button onClick={() => buyMeta(u.id)} disabled={maxed || !afford}
+                      className="px-3 py-2 font-black text-xs" style={{
+                        minWidth: 76, borderRadius: 9,
+                        background: maxed ? "#3E5646" : afford ? "#3fae3a" : "#3E5646",
+                        color: maxed ? "#7E9488" : afford ? "#fff" : "#7E9488",
+                        boxShadow: (!maxed && afford) ? "0 3px 0 rgba(0,0,0,.3)" : "none",
+                      }}>{maxed ? "MÁX" : "💰 " + cost}</button>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center justify-between mt-2 pt-1">
+              {confirmReset ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black" style={{ color: "#FF9B9B" }}>¿Borrar todo?</span>
+                  <button onClick={resetMeta} className="px-3 py-1 font-black text-xs" style={{ background: "#e23b2e", color: "#fff", borderRadius: 8 }}>Sí</button>
+                  <button onClick={() => setConfirmReset(false)} className="px-3 py-1 font-black text-xs" style={{ background: C.card, color: "#9BB3A6", border: "2px solid " + C.line, borderRadius: 8 }}>No</button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmReset(true)} className="px-3 py-1.5 font-black text-xs" style={{ color: "#9BB3A6", background: "transparent", border: "2px solid " + C.line, borderRadius: 8 }}>Reiniciar progreso</button>
+              )}
+              <button onClick={() => { setConfirmReset(false); setPhaseBoth("select"); }} className="px-5 py-2 font-black text-sm" style={{ background: "#FFD54A", color: C.ink, borderRadius: 10 }}>Jugar ▶</button>
+            </div>
           </div>
         )}
 
