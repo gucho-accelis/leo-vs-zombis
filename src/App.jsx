@@ -435,8 +435,7 @@ export default function LeoRun() {
     }
     for (let i = s.texts.length - 1; i >= 0; i--) {
       const t = s.texts[i]; t.t -= dt;
-      // con vy: salta y cae (números de daño); sin vy: flota hacia arriba (monedas, "-X")
-      if (t.vy !== undefined) { t.y += t.vy * dt; t.vy += 240 * dt; } else t.y -= 36 * dt;
+      t.y += (t.vy !== undefined ? t.vy : -36) * dt;   // sube a velocidad constante y se desvanece
       if (t.t <= 0) s.texts.splice(i, 1);
     }
     for (let i = s.fx.length - 1; i >= 0; i--) { s.fx[i].t -= dt; if (s.fx[i].t <= 0) s.fx.splice(i, 1); }
@@ -527,7 +526,7 @@ export default function LeoRun() {
         if (e.hp <= 0 || b.hits.includes(e)) continue;
         const c = hitC(e);
         if (Math.hypot(b.x - c.x, b.y - c.y) < c.r + b.r) {
-          b.hits.push(e); damage(s, e, b.dmg, b.sup);
+          b.hits.push(e); damage(s, e, b.dmg, b.sup, b.x, b.y);   // número en el punto de impacto
           if (b.sup) {
             for (const o of s.enemies) if (o !== e && Math.abs(o.x - e.x) < 90) damage(s, o, b.dmg * .5, false);
             s.fx.push({ x: c.x, y: c.y, r: 84, t: .28, c: "#FFD54A" }); shake(8);
@@ -573,7 +572,10 @@ export default function LeoRun() {
     SFX.charge();
   };
   const launchMurasaki = s => {
-    s.murasaki = createMurasaki(); s.mHits = new Set(); s.mOrb = null;
+    // Vuelo más largo/rápido para que la esfera cruce toda la pantalla y alcance
+    // también a los enemigos lejanos (por defecto se quedaba a media pantalla).
+    s.murasaki = createMurasaki({ flightTime: 1.3, flightSpeed: 1900 });
+    s.mHits = new Set(); s.mOrb = null;
     s.superPhase = "murasaki"; s.superT = 0; SFX.charge();
   };
   const endSuper = s => {
@@ -615,7 +617,7 @@ export default function LeoRun() {
           if (e.hp <= 0 || s.mHits.has(e)) continue;
           const c = hitC(e);
           if (Math.hypot(s.mOrb.x - c.x, s.mOrb.y - c.y) < c.r + s.mOrb.r) {
-            s.mHits.add(e); damage(s, e, p.dmg * wpnOf(s).dmg * 10, true);
+            s.mHits.add(e); damage(s, e, p.dmg * wpnOf(s).dmg * 10, true, s.mOrb.x, s.mOrb.y);
             s.fx.push({ x: c.x, y: c.y, r: 96, t: .3, c: "#C69BFF" }); shake(7);
           }
         }
@@ -648,18 +650,21 @@ export default function LeoRun() {
     SFX.pop();
   };
 
-  const damage = (s, e, dmg, sup) => {
+  const damage = (s, e, dmg, sup, hx, hy) => {
     const p = s.p, crit = Math.random() < p.crit;
     const d = crit ? dmg * 2 : dmg;
     e.hp -= d; e.flash = 1; e.sq = .35; SFX.hit();
     if (p.steal && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + p.steal);
-    // Numero de daño de CADA golpe, saltando sobre el enemigo: blanco los
-    // normales; amarillo y mas grande los criticos (y los del super).
-    const c = hitC(e), big = crit || sup;
+    // Numero de daño: sale del punto de impacto, sube ~40px y se desvanece en 0,6s.
+    // Normal: blanco, tamaño medio. Crítico: amarillo, más grande, con "!".
+    const c = hitC(e);
     s.texts.push({
-      x: c.x + (Math.random() - .5) * 12, y: c.y - c.r, vy: -80, t: big ? .75 : .5,
+      x: hx !== undefined ? hx : c.x,
+      y: hy !== undefined ? hy : c.y - c.r,
+      vy: -40 / 0.6,   // recorre ~40 px en su vida de 0,6 s
+      t: 0.6,
       txt: Math.round(d) + (crit ? "!" : ""),
-      c: big ? "#FFD54A" : "#FFFFFF", size: crit ? 26 : sup ? 24 : 15,
+      c: crit ? "#FFD54A" : "#FFFFFF", size: crit ? 26 : 16,
     });
   };
 
