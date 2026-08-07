@@ -935,18 +935,26 @@ export default function LeoRun() {
 
         {phase === "title" && (
           <div className="absolute inset-0 cursor-pointer select-none" onClick={() => setPhaseBoth("select")}
-            style={{ borderRadius: 18, overflow: "hidden", background: "#0c130d" }}>
-            <img src="/title.png" alt="Leo & Alex Zombie Run" draggable="false"
-              className="absolute inset-0 w-full h-full" style={{ objectFit: "cover" }} />
-            {/* pista de pulso sobre el botón "TAP TO START" (dibujado en la imagen) */}
-            <div className="absolute pointer-events-none"
-              style={{ left: "50%", bottom: "4%", transform: "translateX(-50%)", width: "34%", height: "11%", borderRadius: 14, animation: "tapPulse 1.3s ease-in-out infinite" }} />
-            {/* engranaje (abajo izq.) */}
-            <button aria-label="Ajustes" onClick={(e) => { e.stopPropagation(); setMenu("settings"); }}
-              className="absolute cursor-pointer" style={{ left: "1.5%", bottom: "3%", width: "9%", height: "13%", background: "transparent", border: "none" }} />
-            {/* trofeo (abajo der.) */}
-            <button aria-label="Logros" onClick={(e) => { e.stopPropagation(); setMenu("trophy"); }}
-              className="absolute cursor-pointer" style={{ right: "1.5%", bottom: "3%", width: "9%", height: "13%", background: "transparent", border: "none" }} />
+            style={{ borderRadius: 18, overflow: "hidden", background: "#0b1420" }}>
+            {/* fondo difuminado: rellena los laterales (la imagen es 3:2 y el marco 16:9) sin barras planas */}
+            <img src="/title.png" alt="" aria-hidden="true" draggable="false"
+              className="absolute inset-0 w-full h-full" style={{ objectFit: "cover", filter: "blur(18px) brightness(.45)", transform: "scale(1.1)" }} />
+            {/* imagen completa, centrada y sin recorte */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div style={{ position: "relative", height: "100%", aspectRatio: "1536 / 1024", maxWidth: "100%" }}>
+                <img src="/title.png" alt="Leo & Alex vs Zombies" draggable="false"
+                  className="w-full h-full" style={{ objectFit: "contain", display: "block" }} />
+                {/* pista de pulso sobre el botón "TAP TO START" (dibujado en la imagen) */}
+                <div className="absolute pointer-events-none"
+                  style={{ left: "50%", bottom: "5.5%", transform: "translateX(-50%)", width: "38%", height: "12%", borderRadius: 14, animation: "tapPulse 1.3s ease-in-out infinite" }} />
+                {/* engranaje (abajo izq.) */}
+                <button aria-label="Ajustes" onClick={(e) => { e.stopPropagation(); setMenu("settings"); }}
+                  className="absolute cursor-pointer" style={{ left: "1%", bottom: "2%", width: "10%", height: "14%", background: "transparent", border: "none" }} />
+                {/* trofeo (abajo der.) */}
+                <button aria-label="Logros" onClick={(e) => { e.stopPropagation(); setMenu("trophy"); }}
+                  className="absolute cursor-pointer" style={{ right: "1%", bottom: "2%", width: "10%", height: "14%", background: "transparent", border: "none" }} />
+              </div>
+            </div>
           </div>
         )}
 
