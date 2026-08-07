@@ -79,37 +79,39 @@ const KINDS = {
   boss: { hp: 660, spd: 22, dmg: 24, h: 176, gold: 150, goo: "#D946EF", frames: ["z3_w0", "z3_w1"], atk: "z3_atk", fps: 2.5, boss: true },
 };
 
-/* Rarezas: deciden la potencia (multiplicador m) y el color del borde.
-   Se tira una rareza por separado para cada carta ofrecida. */
-const RARITIES = [
-  { id: "common",    name: "Común",      w: 0.55, mult: 1,   col: "#9CA3AF" }, // gris
-  { id: "rare",      name: "Rara",       w: 0.30, mult: 1.6, col: "#4EA0F5" }, // azul
-  { id: "epic",      name: "Épica",      w: 0.12, mult: 2.5, col: "#C084FC" }, // morada
-  { id: "legendary", name: "Legendaria", w: 0.03, mult: 4,   col: "#FFD54A" }, // dorada
-];
-const rollRarity = () => {
-  let r = Math.random();
-  for (const R of RARITIES) { if (r < R.w) return R; r -= R.w; }
-  return RARITIES[0];
-};
-
-/* Cada mejora recibe el multiplicador m de su rareza: escala tanto el efecto
-   como el texto de la carta. Las mejoras aditivas (crit, proyectiles, vida por
-   golpe) multiplican su incremento; las porcentuales, su porcentaje. */
+/* Sistema de estrellas con tope: cada mejora sube de 0 a MAX_STARS estrellas.
+   El efecto es ADITIVO sobre la estadistica BASE (no multiplicativo sobre el
+   valor anterior): nivel N => base + N x incremento. Nunca pasa del nivel 5.
+   `apply(p, stars)` recalcula la stat desde su base segun el total de estrellas
+   (idempotente), y `fmt(stars)` describe el efecto acumulado a ese nivel. */
+const MAX_STARS = 5;
+const BASE = { dmg: 16, maxHp: 130, crit: 0.05, superKills: 12 };
 const UPGRADES = [
-  { id: "dmg", icon: "🔥", name: "Tiro potente", desc: m => `+${Math.round(30 * m)}% de daño`, ap: (p, m) => { p.dmg *= 1 + 0.30 * m; } },
-  { id: "spd", icon: "👟", name: "Botas veloces", desc: m => `+${Math.round(20 * m)}% de cadencia`, ap: (p, m) => { p.rate *= 1 - 0.20 * m; } },
-  { id: "hp", icon: "❤️", name: "Corazón de campeón", desc: m => `+${Math.round(30 * m)} vida máx. y cura`, ap: (p, m) => { p.maxHp += Math.round(30 * m); p.hp = p.maxHp; } },
-  { id: "crit", icon: "🎯", name: "Puntería", desc: m => `+${Math.round(14 * m)}% de crítico (x2)`, ap: (p, m) => { p.crit += 0.14 * m; } },
-  { id: "multi", icon: "➕", name: "Tiro doble", desc: m => `+${Math.round(m)} proyectil${Math.round(m) > 1 ? "es" : ""} por disparo`, ap: (p, m) => { p.multi += Math.round(m); } },
-  { id: "armor", icon: "🛡️", name: "Piel dura", desc: m => `-${Math.round(20 * m)}% de daño recibido`, ap: (p, m) => { p.armor *= 1 - 0.20 * m; } },
-  { id: "steal", icon: "🩹", name: "Segundo aire", desc: m => `+${Math.round(2 * m)} vida por golpe`, ap: (p, m) => { p.steal += Math.round(2 * m); } },
-  { id: "gold", icon: "💰", name: "Fichaje", desc: m => `+${Math.round(40 * m)}% de monedas`, ap: (p, m) => { p.gold *= 1 + 0.40 * m; } },
-  { id: "pierce", icon: "🌀", name: "Efecto", desc: m => `Los tiros atraviesan +${Math.round(m)}`, ap: (p, m) => { p.pierce += Math.round(m); } },
-  { id: "super", icon: "⚡", name: "Súper recarga", desc: m => `-${Math.round(25 * m)}% de muertes para el súper`, ap: (p, m) => { p.superKills = Math.max(6, Math.round(p.superKills * (1 - 0.25 * m))); } },
+  { id: "dmg",    icon: "🔥", name: "Tiro potente",       fmt: n => `+${8 * n}% de daño`,             apply: (p, n) => { p.dmg = BASE.dmg * (1 + 0.08 * n); } },
+  { id: "spd",    icon: "👟", name: "Botas veloces",      fmt: n => `+${8 * n}% de cadencia`,          apply: (p, n) => { p.rate = 1 / (1 + 0.08 * n); } },
+  { id: "hp",     icon: "❤️", name: "Corazón de campeón", fmt: n => `+${20 * n} vida máx. y cura`,      apply: (p, n) => { const nm = BASE.maxHp + 20 * n; p.hp += nm - p.maxHp; p.maxHp = nm; } },
+  { id: "crit",   icon: "🎯", name: "Puntería",           fmt: n => `+${5 * n}% de crítico (x2)`,       apply: (p, n) => { p.crit = BASE.crit + 0.05 * n; } },
+  { id: "multi",  icon: "➕", name: "Tiro múltiple",      fmt: n => `+${n} proyectil${n > 1 ? "es" : ""} por disparo`, apply: (p, n) => { p.multi = 1 + n; } },
+  { id: "armor",  icon: "🛡️", name: "Piel dura",          fmt: n => `-${8 * n}% de daño recibido`,      apply: (p, n) => { p.armor = 1 - 0.08 * n; } },
+  { id: "steal",  icon: "🩹", name: "Segundo aire",       fmt: n => `+${2 * n} vida por golpe`,         apply: (p, n) => { p.steal = 2 * n; } },
+  { id: "gold",   icon: "💰", name: "Fichaje",            fmt: n => `+${10 * n}% de monedas`,           apply: (p, n) => { p.gold = 1 + 0.10 * n; } },
+  { id: "pierce", icon: "🌀", name: "Efecto",             fmt: n => `Los tiros atraviesan +${n}`,       apply: (p, n) => { p.pierce = n; } },
+  { id: "super",  icon: "⚡", name: "Súper recarga",       fmt: n => `-${8 * n}% de muertes para el súper`, apply: (p, n) => { p.superKills = Math.round(BASE.superKills * (1 - 0.08 * n)); } },
 ];
-// Ofrece 3 mejoras distintas, cada una con su rareza tirada por separado.
-const pickChoices = () => [...UPGRADES].sort(() => Math.random() - .5).slice(0, 3).map(up => ({ up, rarity: rollRarity() }));
+// Recompensas de relleno cuando faltan mejoras no maximizadas (o estan todas al tope).
+const FILLERS = [
+  { kind: "coins", icon: "💰", name: "Monedas", desc: "+150 monedas", amount: 150 },
+  { kind: "heal",  icon: "❤️", name: "Vida",    desc: "+60 de vida",  amount: 60 },
+  { kind: "coins", icon: "💰", name: "Monedas", desc: "+300 monedas", amount: 300 },
+];
+/* Ofrece 3 cartas: mejoras aun no maximizadas (las de 5 estrellas ya no salen).
+   Si quedan menos de 3 disponibles, rellena con monedas/vida. */
+const pickChoices = p => {
+  const avail = UPGRADES.filter(u => (p.stars[u.id] || 0) < MAX_STARS).sort(() => Math.random() - .5).slice(0, 3);
+  const out = avail.map(up => ({ kind: "up", up, stars: p.stars[up.id] || 0 }));
+  for (let i = 0; out.length < 3; i++) out.push(FILLERS[i % FILLERS.length]);
+  return out;
+};
 
 /* ===== SOUND ===== */
 let AC = null; const audio = { on: true };
@@ -140,6 +142,7 @@ const SFX = {
 const freshP = () => ({
   hp: 130, maxHp: 130, dmg: 16, rate: 1, crit: 0.05, multi: 1,
   armor: 1, steal: 0, gold: 1, pierce: 0, superKills: SUPER_KILLS,
+  stars: {},   // estrellas por mejora (id -> 0..MAX_STARS)
 });
 const freshGame = () => ({
   p: freshP(), char: "leo", coins: 0, enc: 0, dist: 0, worldX: 0,
@@ -560,7 +563,7 @@ export default function LeoRun() {
       s.state = "win"; s.winT = 0; s.poseT = 0;
       // Una mejora despues de CADA combate (antes cada 3).
       SFX.up();
-      s.pendingChoices = pickChoices();
+      s.pendingChoices = pickChoices(s.p);
     }
     syncHud(s);
   };
@@ -865,9 +868,17 @@ export default function LeoRun() {
     startSuper(s);
   };
   const takeUp = c => {
-    const s = g.current;
-    c.up.ap(s.p, c.rarity.mult);   // aplica el efecto escalado por la rareza
-    setTaken(t => [...t, c.up.icon]); SFX.coin(); syncHud(s); setPhaseBoth("run");
+    const s = g.current, p = s.p;
+    if (c.kind === "up") {
+      const n = (p.stars[c.up.id] || 0) + 1;   // sube una estrella y recalcula desde la base
+      p.stars[c.up.id] = n; c.up.apply(p, n);
+      setTaken(t => [...t, c.up.icon]);
+    } else if (c.kind === "coins") {
+      s.coins += c.amount;
+    } else if (c.kind === "heal") {
+      p.hp = Math.min(p.maxHp, p.hp + c.amount);
+    }
+    SFX.coin(); syncHud(s); setPhaseBoth("run");
   };
   // Empieza una partida con el personaje elegido (leo | alex).
   const startGame = useCallback(char => {
@@ -943,17 +954,24 @@ export default function LeoRun() {
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-3" style={{ background: "rgba(20,30,24,.9)", borderRadius: 18 }}>
             <p className="font-black text-lg" style={{ color: "#FFD54A" }}>¡{CHARS[hud.char]?.name || "Leo"} sube de nivel!</p>
             <div className="flex gap-2 sm:gap-3 flex-wrap justify-center">
-              {choices.map((c, i) => (
-                <button key={c.up.id} onClick={() => takeUp(c)} className="w-32 sm:w-44 p-3 text-left"
-                  style={{ background: C.card, border: "3px solid " + c.rarity.col, borderRadius: 14, boxShadow: "0 0 14px " + c.rarity.col + "55", animation: "popIn .35s " + (i * .09) + "s backwards cubic-bezier(.2,1.4,.5,1)" }}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl">{c.up.icon}</span>
-                    <span className="text-[10px] font-black uppercase" style={{ color: c.rarity.col }}>{c.rarity.name}</span>
-                  </div>
-                  <div className="font-black text-sm mt-1" style={{ color: c.rarity.col }}>{c.up.name}</div>
-                  <div className="text-xs mt-0.5" style={{ color: "#9BB3A6" }}>{c.up.desc(c.rarity.mult)}</div>
-                </button>
-              ))}
+              {choices.map((c, i) => {
+                const isUp = c.kind === "up";
+                const lvl = isUp ? c.stars + 1 : 0;   // nivel al que subiría al elegirla
+                return (
+                  <button key={i} onClick={() => takeUp(c)} className="w-32 sm:w-44 p-3 text-left"
+                    style={{ background: C.card, border: "3px solid " + C.line, borderRadius: 14, animation: "popIn .35s " + (i * .09) + "s backwards cubic-bezier(.2,1.4,.5,1)" }}>
+                    <div className="text-2xl">{isUp ? c.up.icon : c.icon}</div>
+                    <div className="font-black text-sm mt-1" style={{ color: isUp ? "#8BE04A" : "#FFD54A" }}>{isUp ? c.up.name : c.name}</div>
+                    <div className="text-xs mt-0.5" style={{ color: "#9BB3A6" }}>{isUp ? c.up.fmt(lvl) : c.desc}</div>
+                    {isUp && (
+                      <div className="text-sm mt-1" style={{ letterSpacing: 2 }}>
+                        <span style={{ color: "#FFD54A" }}>{"★".repeat(lvl)}</span>
+                        <span style={{ color: "#5B6B60" }}>{"☆".repeat(MAX_STARS - lvl)}</span>
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
