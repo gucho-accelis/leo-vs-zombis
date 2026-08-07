@@ -119,6 +119,49 @@ const loadMeta = () => {
   catch { return { coins: 0, levels: {} }; }
 };
 const saveMeta = m => { try { localStorage.setItem("leoMeta", JSON.stringify(m)); } catch { /* ignore */ } };
+
+/* ===== ETAPA DE DIAS =====
+   Una etapa son 25 dias: la mayoria combates, un evento cada 3-4 dias y un
+   jefe el dia 25. Los eventos no tienen enemigos: el personaje descansa y el
+   evento se resuelve por texto con botones de accion. */
+const STAGE_DAYS = 25;
+function makeSchedule() {
+  const days = new Array(STAGE_DAYS + 1).fill("combat");   // 1..25
+  days[STAGE_DAYS] = "boss";
+  let d = 3 + Math.floor(Math.random() * 2);               // primer evento el dia 3 o 4
+  while (d < STAGE_DAYS) { days[d] = "event"; d += 3 + Math.floor(Math.random() * 2); }
+  return days;
+}
+const DAY_ICON = { combat: "⚔️", event: "❓", boss: "💀" };
+
+/* Eventos: cada uno tiene cajas de texto iniciales y acciones. Al pulsar una
+   accion se aplica su efecto; si tiene `result`, se apila una caja mas y queda
+   un boton "Seguir" para continuar. Palabras clave entre *asteriscos* (naranja).
+   Los buffs tocan p.base para que las mejoras de partida se sumen encima. */
+const EVENTS = [
+  { id: "fire", boxes: ["Encuentras una *hoguera* que aún humea entre los árboles."],
+    actions: [{ label: "Descansar", result: "Te calientas y recuperas toda la *vida*.", run: s => { s.p.hp = s.p.maxHp; } }] },
+  { id: "box", boxes: ["Una *caja de suministros* medio enterrada en el barro."],
+    actions: [{ label: "Abrir la caja", result: "Dentro hay *180 monedas* y un *vendaje*.", run: s => { s.coins += 180; s.p.hp = Math.min(s.p.maxHp, s.p.hp + 40); } }] },
+  { id: "relic", boxes: ["Tocas una *reliquia* antigua. Una energía recorre tus brazos."],
+    actions: [{ label: "Aceptar el poder", result: "Te sientes más *fuerte*: tu daño base sube.", run: s => { s.p.base.dmg += 2; s.p.dmg = s.p.base.dmg * (1 + 0.08 * (s.p.stars.dmg || 0)); } }] },
+  { id: "survivor", boxes: ["Un *superviviente* herido te pide ayuda para escapar."],
+    actions: [
+      { label: "Ayudarle (das 20 de vida)", result: "Te lo agradece con un fajo de *250 monedas*.", run: s => { s.p.hp = Math.max(1, s.p.hp - 20); s.coins += 250; } },
+      { label: "Seguir sin ayudar", result: "Sigues tu camino en silencio.", run: () => { } },
+    ] },
+  { id: "shrine", boxes: ["Un *altar* olvidado con una *poción* encima."],
+    actions: [
+      { label: "Beber la poción", result: "Recuperas *60 de vida*.", run: s => { s.p.hp = Math.min(s.p.maxHp, s.p.hp + 60); } },
+      { label: "Coger las monedas", result: "Encuentras *150 monedas* escondidas.", run: s => { s.coins += 150; } },
+    ] },
+];
+const makeEvent = () => {
+  const def = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  return { boxes: [...def.boxes], actions: def.actions.map(a => ({ ...a })), key: 0 };
+};
+// Divide un texto en segmentos; los impares (entre asteriscos) son palabras clave.
+const kwSplit = str => str.split("*").map((t, i) => ({ t, kw: i % 2 === 1 }));
 // Recompensas de relleno cuando faltan mejoras no maximizadas (o estan todas al tope).
 const FILLERS = [
   { kind: "coins", icon: "💰", name: "Monedas", desc: "+150 monedas", amount: 150 },
@@ -182,6 +225,7 @@ const freshGame = (meta = { levels: {} }, char = "leo") => {
   const superInit = CHARS[char].hasSuper ? Math.round(p.superKills * 0.08 * (meta.levels?.super || 0)) : 0;
   return {
   p, char, coins: 0, enc: 0, dist: 0, worldX: 0,
+  day: 1, stage: 1, schedule: makeSchedule(),   // etapa de 25 dias
   enemies: [], balls: [], parts: [], texts: [], fx: [],
   atkT: 0, state: "run", anim: 0, poseT: 0, hurtT: 0,
   winT: 0, pendingChoices: null, superWin: false,
@@ -218,10 +262,17 @@ function feetCenter(im) {
   return n ? sum / n : null;
 }
 
-function encounter(n) {
-  const isBoss = n > 0 && n % 5 === 0;
-  const s = Math.pow(1.10, n);   // escalado enemigo por combate (antes 1.16, demasiado empinado)
-  if (isBoss) return { boss: true, list: [{ k: "boss", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }] };
+// Indice de dificultad global (dia dentro de la etapa + etapas previas).
+const dayIdx = s => (s.stage - 1) * STAGE_DAYS + s.day;
+// Avanza al siguiente dia; al pasar del 25 empieza una etapa nueva.
+const nextDay = s => {
+  s.day++;
+  if (s.day > STAGE_DAYS) { s.stage++; s.day = 1; s.schedule = makeSchedule(); }
+  s.nextEnc = s.dist + 360 + Math.random() * 150;
+};
+function encounter(n, boss) {
+  const s = Math.pow(1.10, n);   // escalado enemigo por dia (1.10, no muy empinado)
+  if (boss) return { boss: true, list: [{ k: "boss", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }, { k: "runner", s }] };
   const count = Math.min(18, (2 + Math.floor(n / 2)) * 3);   // x3 enemigos por oleada
   const list = [];
   for (let i = 0; i < count; i++) {
@@ -411,13 +462,14 @@ export default function LeoRun() {
   const phaseRef = useRef("title");
   const [ready, setReady] = useState(false);
   const [phase, setPhase] = useState("title");
-  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, superPct: 0, superReady: false, superActive: false, superT: 0 });
+  const [hud, setHud] = useState({ hp: 130, maxHp: 130, coins: 0, enc: 0, day: 1, stage: 1, superPct: 0, superReady: false, superActive: false, superT: 0 });
   const [choices, setChoices] = useState([]);
   const [taken, setTaken] = useState([]);
   const [muted, setMuted] = useState(false);
   const [banner, setBanner] = useState(null);
   const [menu, setMenu] = useState(null);              // null | "settings" | "trophy"
   const [meta, setMeta] = useState(loadMeta);          // progresion permanente: { coins, levels }
+  const [event, setEvent] = useState(null);            // evento activo (dia sin combate)
   const [confirmReset, setConfirmReset] = useState(false);
   const [lastRun, setLastRun] = useState(0);           // monedas ganadas en la ultima partida
   const [best, setBest] = useState(() => {
@@ -510,11 +562,19 @@ export default function LeoRun() {
       s.worldX += v * dt; s.dist += v * dt; s.anim = s.dist / 24;
       if (Math.random() < dt * 9) s.parts.push({ x: LEO_X - 24, y: GY - 3, vx: -60 - Math.random() * 40, vy: -30 * Math.random(), t: .35, r: 2 + Math.random() * 2, c: "#D9BE8C" });
       if (s.dist >= s.nextEnc) {
-        const e = encounter(s.enc);
-        s.spawnQ = e.list.map((x, i) => ({ ...x, delay: i * .35 })); s.spawnT = 0;
-        s.state = "idle"; s.poseT = 0;
-        setPhaseBoth("fight");
-        if (e.boss) { SFX.boss(); shake(8); showBanner("👹 ¡JEFE!", true); }
+        const type = s.schedule[s.day] || "combat";
+        if (type === "event") {
+          // Dia de evento: sin enemigos, el personaje descansa y se resuelve por texto.
+          s.state = "rest"; s.poseT = 0;
+          setEvent(makeEvent()); setPhaseBoth("event");
+        } else {
+          const boss = type === "boss";
+          const e = encounter(dayIdx(s), boss);
+          s.spawnQ = e.list.map((x, i) => ({ ...x, delay: i * .35 })); s.spawnT = 0;
+          s.state = "idle"; s.poseT = 0;
+          setPhaseBoth("fight");
+          if (boss) { SFX.boss(); shake(8); showBanner("👹 ¡JEFE!", true); }
+        }
       }
       syncHud(s); return;
     }
@@ -550,7 +610,7 @@ export default function LeoRun() {
         e.atk -= dt;
         if (e.atk <= 0) {
           e.atk = 1.1; e.swing = .45;
-          const d = Math.max(1, Math.round(k.dmg * Math.pow(1.1, s.enc) * p.armor));
+          const d = Math.max(1, Math.round(k.dmg * Math.pow(1.1, dayIdx(s)) * p.armor));
           p.hp -= d; s.hurtT = .3; s.state = "hurt"; s.poseT = .3;
           SFX.ouch(); shake(6);
           s.texts.push({ x: LEO_X, y: GY - 110, t: .7, txt: "-" + d, c: "#FF6B6B", size: 19 });
@@ -606,13 +666,12 @@ export default function LeoRun() {
     }
 
     if (!s.enemies.length && !s.spawnQ.length) {
-      // Arranca la secuencia de victoria; el mundo queda congelado (seguimos en
-      // fase "fight") y la pantalla de mejoras / el cartel esperan a que termine.
-      s.enc++;
-      s.nextEnc = s.dist + 360 + Math.random() * 150;
+      // Combate superado: avanza el dia (nueva etapa al pasar del 25) y arranca
+      // la secuencia de victoria; el mundo queda congelado (seguimos en "fight").
+      s.enc++; nextDay(s);
       s.superWin = s.superSprite;   // si esta en súper, la victoria usa leo_super (frame unico)
       s.state = "win"; s.winT = 0; s.poseT = 0;
-      // Una mejora despues de CADA combate (antes cada 3).
+      // Una mejora despues de CADA combate.
       SFX.up();
       s.pendingChoices = pickChoices(s.p);
     }
@@ -730,9 +789,10 @@ export default function LeoRun() {
     const superActive = s.superPhase === "active";
     const superT = Math.max(0, s.superT);
     if (h.hp === s.p.hp && h.maxHp === s.p.maxHp && h.coins === s.coins && h.enc === s.enc && h.char === s.char
+      && h.day === s.day && h.stage === s.stage
       && Math.abs(h.superPct - superPct) < .01 && h.superReady === superReady
       && h.superActive === superActive && Math.abs(h.superT - superT) < .2) return h;
-    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, char: s.char, superPct, superReady, superActive, superT };
+    return { hp: s.p.hp, maxHp: s.p.maxHp, coins: s.coins, enc: s.enc, char: s.char, day: s.day, stage: s.stage, superPct, superReady, superActive, superT };
   });
 
   /* ---- draw ---- */
@@ -813,6 +873,7 @@ export default function LeoRun() {
     if (s.char === "alex") {
       // Alex: prefijo a_, sin super ni secuencia de victoria (pose simple)
       if (s.state === "win") key = "a_idle";
+      else if (s.state === "rest") key = "a_idle";   // dia de evento: reposo
       else if (s.state === "run") key = "a_" + run;
       else if (s.state === "atk") key = "a_fire";
       else if (s.state === "hurt" || s.state === "ko") key = "a_hurt";
@@ -821,6 +882,7 @@ export default function LeoRun() {
       const pre = superOn ? "s_" : "";
       if (s.superPhase === "murasaki" && s.murasaki) key = s.murasaki.frameName;  // frames super_attack
       else if (s.state === "win") key = s.superWin ? "s_vic" : "v" + Math.min(VIC_FRAMES - 1, Math.floor(s.winT * VIC_FPS));
+      else if (s.state === "rest") key = pre + "idle";   // dia de evento: reposo
       else if (s.state === "run") key = pre + run;
       else if (s.state === "atk") key = pre + "fire";
       else if (s.state === "hurt" || s.state === "ko") key = pre + "hurt";
@@ -931,13 +993,32 @@ export default function LeoRun() {
     }
     SFX.coin(); syncHud(s); setPhaseBoth("run");
   };
+  // Resuelve una accion del evento del dia. Aplica su efecto; si tiene texto de
+  // resultado, apila otra caja y deja un boton "Seguir"; si no, avanza el dia.
+  const doEventAction = a => {
+    const s = g.current;
+    a.run?.(s);
+    if (a.advance) { finishEvent(); return; }
+    if (a.result) {
+      setEvent(ev => ({ ...ev, boxes: [...ev.boxes, a.result], actions: [{ label: "Seguir", advance: true }] }));
+    } else {
+      finishEvent();
+    }
+    syncHud(s);
+  };
+  const finishEvent = () => {
+    const s = g.current;
+    nextDay(s); s.state = "run"; s.poseT = 0;
+    setEvent(null); syncHud(s); setPhaseBoth("run");
+  };
+
   // Empieza una partida con el personaje elegido (leo | alex), aplicando la
   // progresion permanente a las estadisticas base.
   const startGame = useCallback(char => {
     const clouds = g.current.clouds;
     g.current = freshGame(meta, char); g.current.clouds = clouds;
     const p = g.current.p;
-    setTaken([]); setHud({ hp: p.hp, maxHp: p.maxHp, coins: 0, enc: 0, char, superPct: g.current.superFill / p.superKills, superReady: false, superActive: false, superT: 0 });
+    setTaken([]); setEvent(null); setHud({ hp: p.hp, maxHp: p.maxHp, coins: 0, enc: 0, char, day: 1, stage: 1, superPct: g.current.superFill / p.superKills, superReady: false, superActive: false, superT: 0 });
     setMenu(null); setPhaseBoth("run");
   }, [meta]);
 
@@ -966,13 +1047,51 @@ export default function LeoRun() {
             <span className="text-xs">{Math.ceil(hud.hp)}</span>
           </div>
           <span style={{ color: "#FFD54A" }}>💰 {hud.coins}</span>
-          <span style={{ color: "#7DD3FC" }}>⚔️ {hud.enc}</span>
+        </div>
+      </div>
+      )}
+
+      {/* Medidor de días: línea de progreso con los próximos días como iconos. */}
+      {!inMenus && (
+      <div className="w-full max-w-3xl flex items-center gap-3">
+        <div className="flex flex-col items-center leading-none" style={{ minWidth: 40 }}>
+          <span style={{ fontSize: 9, fontWeight: 900, color: "#9BB3A6", letterSpacing: 1 }}>DÍA</span>
+          <span style={{ fontSize: 20, fontWeight: 900, color: "#FFD54A" }}>{hud.day}</span>
+        </div>
+        <div className="flex-1 flex items-center gap-2" style={{ position: "relative", paddingTop: 8 }}>
+          <div style={{ position: "absolute", left: 8, right: 8, top: "calc(50% + 4px)", height: 3, background: C.line, borderRadius: 2, zIndex: 0 }} />
+          {(() => {
+            const sched = g.current.schedule || [];
+            const upto = Math.min(hud.day + 3, STAGE_DAYS);
+            const gap = upto < STAGE_DAYS;
+            const nodes = [];
+            for (let d = hud.day; d <= upto; d++) nodes.push(d);
+            const DayNode = d => {
+              const type = sched[d] || "combat", cur = d === hud.day;
+              return (
+                <div key={d} style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center" }}>
+                  {cur && <span style={{ position: "absolute", top: -12, fontSize: 10, color: "#FFD54A" }}>▼</span>}
+                  <div style={{
+                    width: 28, height: 28, borderRadius: "50%", display: "grid", placeItems: "center", fontSize: 13,
+                    background: type === "boss" ? "#3b1d4a" : type === "event" ? "#123049" : "#2B3B31",
+                    border: "2px solid " + (cur ? "#FFD54A" : type === "boss" ? "#C084FC" : C.line),
+                    boxShadow: cur ? "0 0 8px rgba(255,213,74,.55)" : "none",
+                  }}>{DAY_ICON[type]}</div>
+                </div>
+              );
+            };
+            return (<>
+              {nodes.map(DayNode)}
+              {gap && <span style={{ zIndex: 1, color: "#7E9488", fontWeight: 900, alignSelf: "flex-end", paddingBottom: 6 }}>···</span>}
+              {gap && DayNode(STAGE_DAYS)}
+            </>);
+          })()}
         </div>
       </div>
       )}
 
       {/* Barra de súper: debajo de la vida, se llena al matar enemigos. Solo Leo. */}
-      {!inMenus && showSuper && (
+      {!inMenus && showSuper && phase !== "event" && (
       <div className="w-full max-w-3xl flex items-center gap-2 -mt-1">
         <span className="text-xs font-black" style={{ color: "#C69BFF" }}>⚡</span>
         <div style={{ flex: 1, height: 11, background: "#20142e", borderRadius: 6, overflow: "hidden", border: "2px solid " + C.line, position: "relative" }}>
@@ -1164,7 +1283,30 @@ export default function LeoRun() {
         </div>
       )}
 
-      {!inMenus && (
+      {/* PANEL DE TEXTO (días de evento): bajo la barra de estadísticas. */}
+      {phase === "event" && event && (
+      <div className="w-full max-w-3xl flex flex-col gap-2">
+        <div>
+          <div className="font-black text-base" style={{ color: "#FFD54A" }}>Día {hud.day}</div>
+          <div style={{ height: 2, background: C.line, borderRadius: 2, marginTop: 4 }} />
+        </div>
+        {event.boxes.map((b, i) => (
+          <div key={i} style={{ background: "#F3E9D2", color: "#241E17", borderRadius: 12, padding: "10px 12px", fontWeight: 700, lineHeight: 1.4, animation: "popIn .3s backwards cubic-bezier(.2,1.4,.5,1)" }}>
+            {kwSplit(b).map((seg, j) => seg.kw
+              ? <b key={j} style={{ color: "#E8801A" }}>{seg.t}</b>
+              : <span key={j}>{seg.t}</span>)}
+          </div>
+        ))}
+        <div className="flex flex-col gap-2 mt-1">
+          {event.actions.map((a, i) => (
+            <button key={i} onClick={() => doEventAction(a)} className="w-full py-3 font-black text-base"
+              style={{ background: "#FFD54A", color: C.ink, borderRadius: 14, boxShadow: "0 4px 0 rgba(0,0,0,.3)" }}>{a.label}</button>
+          ))}
+        </div>
+      </div>
+      )}
+
+      {!inMenus && phase !== "event" && (
       <div className="w-full max-w-3xl flex items-center gap-2">
         {showSuper ? (
         <button onClick={superShot} disabled={!hud.superReady && !hud.superActive}
