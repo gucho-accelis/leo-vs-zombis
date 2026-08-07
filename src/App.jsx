@@ -34,7 +34,9 @@ const SPR = {
 SUPER_ATTACK_FRAMES.forEach((k, i) => { SPR[k] = `${SUP}/super_attack_${i}.png`; });
 
 /* ===== CONFIG ===== */
-const W = 760, H = 420, GY = 372, LEO_X = 175, LEO_H = 104;
+// Lienzo más alto (formato móvil): más escena vertical sobre la línea de suelo.
+// W (ancho de juego) y GROUND del personaje no cambian; solo crece el alto.
+const W = 760, H = 620, GY = 568, LEO_X = 175, LEO_H = 104;
 const BG_KEYS = ["bg1", "bg2", "bg3", "bg4", "bg5"];
 
 /* Personaje v2: todos los frames comparten lienzo 420x440 con la linea de suelo
@@ -1026,8 +1028,8 @@ export default function LeoRun() {
   const showSuper = hud.char !== "alex";   // Alex aun no tiene super
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center gap-3 p-3 sm:p-5"
-      style={{ background: C.ui, color: "#EAF3ED", fontFamily: "ui-rounded, 'Nunito', 'Avenir Next', system-ui, sans-serif" }}>
+    <div className="w-full flex flex-col items-center justify-start gap-2 p-2 sm:p-4"
+      style={{ minHeight: "100dvh", background: C.ui, color: "#EAF3ED", fontFamily: "ui-rounded, 'Nunito', 'Avenir Next', system-ui, sans-serif" }}>
       <style>{`
         @keyframes popIn{0%{transform:scale(.7) translateY(14px);opacity:0}70%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
         @keyframes bannerIn{0%{transform:translateY(-24px);opacity:0}18%,78%{transform:translateY(0);opacity:1}100%{transform:translateY(-14px);opacity:0}}
@@ -1036,7 +1038,7 @@ export default function LeoRun() {
       `}</style>
 
       {!inMenus && (
-      <div className="w-full max-w-3xl flex items-center justify-between gap-2 flex-wrap">
+      <div className="w-full max-w-[520px] flex items-center justify-between gap-2 flex-wrap">
         <h1 className="text-lg sm:text-2xl font-black"><span style={{ color: "#FFD54A" }}>LEO</span> vs ZOMBIS</h1>
         <div className="flex items-center gap-2 text-sm font-black">
           <div className="flex items-center gap-1.5 px-2 py-1" style={{ background: C.card, borderRadius: 10, border: "2px solid " + C.line }}>
@@ -1053,7 +1055,7 @@ export default function LeoRun() {
 
       {/* Medidor de días: línea de progreso con los próximos días como iconos. */}
       {!inMenus && (
-      <div className="w-full max-w-3xl flex items-center gap-3">
+      <div className="w-full max-w-[520px] flex items-center gap-3">
         <div className="flex flex-col items-center leading-none" style={{ minWidth: 40 }}>
           <span style={{ fontSize: 9, fontWeight: 900, color: "#9BB3A6", letterSpacing: 1 }}>DÍA</span>
           <span style={{ fontSize: 20, fontWeight: 900, color: "#FFD54A" }}>{hud.day}</span>
@@ -1092,7 +1094,7 @@ export default function LeoRun() {
 
       {/* Barra de súper: debajo de la vida, se llena al matar enemigos. Solo Leo. */}
       {!inMenus && showSuper && phase !== "event" && (
-      <div className="w-full max-w-3xl flex items-center gap-2 -mt-1">
+      <div className="w-full max-w-[520px] flex items-center gap-2 -mt-1">
         <span className="text-xs font-black" style={{ color: "#C69BFF" }}>⚡</span>
         <div style={{ flex: 1, height: 11, background: "#20142e", borderRadius: 6, overflow: "hidden", border: "2px solid " + C.line, position: "relative" }}>
           <div style={{
@@ -1107,7 +1109,7 @@ export default function LeoRun() {
       </div>
       )}
 
-      <div className="relative w-full max-w-3xl">
+      <div className="relative w-full max-w-[520px]">
         <canvas ref={cv} width={W} height={H} onClick={superShot}
           className="w-full h-auto cursor-pointer touch-none"
           style={{ borderRadius: 18, border: "4px solid " + C.line, display: "block" }} />
@@ -1169,7 +1171,7 @@ export default function LeoRun() {
               className="absolute inset-0 w-full h-full" style={{ objectFit: "cover", filter: "blur(18px) brightness(.45)", transform: "scale(1.1)" }} />
             {/* imagen completa, centrada y sin recorte */}
             <div className="absolute inset-0 flex items-center justify-center">
-              <div style={{ position: "relative", height: "100%", aspectRatio: "1536 / 1024", maxWidth: "100%" }}>
+              <div style={{ position: "relative", width: "100%", maxHeight: "100%", aspectRatio: "1536 / 1024" }}>
                 <img src="/title.png" alt="Leo & Alex vs Zombies" draggable="false"
                   className="w-full h-full" style={{ objectFit: "contain", display: "block" }} />
                 {/* pista de pulso sobre el botón "TAP TO START" (dibujado en la imagen) */}
@@ -1285,7 +1287,7 @@ export default function LeoRun() {
 
       {/* PANEL DE TEXTO (días de evento): bajo la barra de estadísticas. */}
       {phase === "event" && event && (
-      <div className="w-full max-w-3xl flex flex-col gap-2">
+      <div className="w-full max-w-[520px] flex flex-col gap-2">
         <div>
           <div className="font-black text-base" style={{ color: "#FFD54A" }}>Día {hud.day}</div>
           <div style={{ height: 2, background: C.line, borderRadius: 2, marginTop: 4 }} />
@@ -1307,7 +1309,7 @@ export default function LeoRun() {
       )}
 
       {!inMenus && phase !== "event" && (
-      <div className="w-full max-w-3xl flex items-center gap-2">
+      <div className="w-full max-w-[520px] flex items-center gap-2">
         {showSuper ? (
         <button onClick={superShot} disabled={!hud.superReady && !hud.superActive}
           className="flex-1 py-3 font-black text-base relative overflow-hidden"
@@ -1330,12 +1332,12 @@ export default function LeoRun() {
       )}
 
       {taken.length > 0 && (
-        <div className="w-full max-w-3xl text-base">
+        <div className="w-full max-w-[520px] text-base">
           <span className="text-xs mr-2" style={{ color: "#6F8A7C" }}>Mejoras:</span>{taken.join(" ")}
         </div>
       )}
       {!inMenus && (
-      <p className="max-w-3xl text-xs" style={{ color: "#6F8A7C" }}>
+      <p className="max-w-[520px] text-xs" style={{ color: "#6F8A7C" }}>
         {hud.char === "alex"
           ? "Alex corre y dispara solo con su rifle bláster · rápido y flojo · su súper (chut de fútbol) llegará pronto"
           : "Leo corre y dispara solo · llena la barra matando zombis y activa el MODO SÚPER (daño x2) · luego lanza el MURASAKI"}
